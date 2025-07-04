@@ -1,12 +1,21 @@
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
+import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { FileShareModal } from "@/components/FileShareModal";
-import { Share2, Zap, Shield, Globe } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { SendFileTab } from "@/components/SendFileTab";
+import { ReceiveFileTab } from "@/components/ReceiveFileTab";
+import { Share, File, Zap, Shield, Globe } from "lucide-react";
 import heroImage from "@/assets/hero-image.jpg";
 
 const Index = () => {
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState("send");
+
+  useEffect(() => {
+    // Check for receive URL parameter on page load
+    const hash = window.location.hash;
+    if (hash.startsWith("#receive=")) {
+      setActiveTab("receive");
+    }
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-hero">
@@ -50,28 +59,36 @@ const Index = () => {
         </div>
       </div>
 
-      {/* Tool Card Section */}
+      {/* File Sharing Section */}
       <div className="container mx-auto px-4 py-12">
-        <div className="max-w-md mx-auto">
-          <Card 
-            className="glass-effect hover:glow-effect transition-all duration-300 cursor-pointer group border-card-border"
-            onClick={() => setIsModalOpen(true)}
-          >
-            <CardContent className="p-8 text-center space-y-4">
-              <div className="w-16 h-16 mx-auto bg-gradient-primary rounded-2xl flex items-center justify-center shadow-button group-hover:scale-110 transition-transform duration-300">
-                <Share2 className="w-8 h-8 text-white" />
+        <div className="max-w-4xl mx-auto">
+          <Card className="glass-effect border-card-border">
+            <CardContent className="p-8">
+              <div className="text-center mb-8">
+                <h2 className="text-3xl font-bold gradient-text mb-4">File Transfer Tool</h2>
+                <p className="text-muted-foreground">Send or receive files instantly using WebRTC technology</p>
               </div>
-              <h3 className="text-2xl font-bold text-card-foreground">
-                Start File Transfer
-              </h3>
-              <p className="text-muted-foreground">
-                Send or receive files instantly using WebRTC technology
-              </p>
-              <div className="pt-2">
-                <Button className="bg-gradient-primary hover:shadow-button transition-all duration-300">
-                  Launch Tool
-                </Button>
-              </div>
+              
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                <TabsList className="grid w-full grid-cols-2 bg-muted mb-8">
+                  <TabsTrigger value="send" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex items-center gap-2">
+                    <Share className="w-4 h-4" />
+                    Share File
+                  </TabsTrigger>
+                  <TabsTrigger value="receive" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex items-center gap-2">
+                    <File className="w-4 h-4" />
+                    Receive File
+                  </TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="send">
+                  <SendFileTab />
+                </TabsContent>
+                
+                <TabsContent value="receive">
+                  <ReceiveFileTab />
+                </TabsContent>
+              </Tabs>
             </CardContent>
           </Card>
         </div>
@@ -103,11 +120,6 @@ const Index = () => {
           </div>
         </div>
       </div>
-
-      <FileShareModal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
-      />
     </div>
   );
 };
