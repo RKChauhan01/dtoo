@@ -6,15 +6,15 @@ import { SendFileTab } from "@/components/SendFileTab";
 import { ReceiveFileTab } from "@/components/ReceiveFileTab";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-
 interface FileShareModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
-
-export const FileShareModal = ({ isOpen, onClose }: FileShareModalProps) => {
+export const FileShareModal = ({
+  isOpen,
+  onClose
+}: FileShareModalProps) => {
   const [activeTab, setActiveTab] = useState("send");
-
   useEffect(() => {
     if (isOpen) {
       // Check for receive URL parameter
@@ -25,7 +25,6 @@ export const FileShareModal = ({ isOpen, onClose }: FileShareModalProps) => {
       }
     }
   }, [isOpen]);
-
   const handleClose = () => {
     // Reset everything when modal closes
     setActiveTab("send");
@@ -35,18 +34,11 @@ export const FileShareModal = ({ isOpen, onClose }: FileShareModalProps) => {
     }
     onClose();
   };
-
-  return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl w-full bg-card border-card-border shadow-card max-h-[90vh] flex flex-col">
+  return <Dialog open={isOpen} onOpenChange={handleClose}>
+      <DialogContent className="max-w-2xl w-full border-card-border shadow-card max-h-[90vh] flex flex-col bg-stone-200 rounded">
         <div className="flex items-center justify-between p-6 border-b border-card-border flex-shrink-0">
           <h2 className="text-2xl font-bold gradient-text">WebRTC File Transfer</h2>
-          <Button 
-            variant="ghost" 
-            size="icon"
-            onClick={handleClose}
-            className="text-muted-foreground hover:text-foreground"
-          >
+          <Button variant="ghost" size="icon" onClick={handleClose} className="text-muted-foreground hover:text-foreground">
             <X className="w-5 h-5" />
           </Button>
         </div>
@@ -74,6 +66,5 @@ export const FileShareModal = ({ isOpen, onClose }: FileShareModalProps) => {
           </div>
         </ScrollArea>
       </DialogContent>
-    </Dialog>
-  );
+    </Dialog>;
 };
