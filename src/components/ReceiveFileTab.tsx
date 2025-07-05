@@ -145,11 +145,15 @@ export const ReceiveFileTab = () => {
       
       const progress = Math.round((receivedSizeRef.current / expectedSizeRef.current) * 100);
       setReceiveProgress(progress);
-      setStatus(`Receiving file... ${progress}%`);
-
-      // Check if we've received all data
-      if (receivedSizeRef.current >= expectedSizeRef.current) {
+      
+      console.log(`Received: ${receivedSizeRef.current}/${expectedSizeRef.current} bytes (${progress}%)`);
+      
+      // Check if we've received all data - use a small tolerance for floating point comparison
+      if (receivedSizeRef.current >= expectedSizeRef.current || progress >= 100) {
+        console.log("File transfer complete, calling completeFileReceive");
         completeFileReceive();
+      } else {
+        setStatus(`Receiving file... ${progress}%`);
       }
     }
   };
