@@ -26,6 +26,7 @@ export const ReceiveFileTab = () => {
   const receivedChunksRef = useRef<ArrayBuffer[]>([]);
   const expectedSizeRef = useRef<number>(0);
   const receivedSizeRef = useRef<number>(0);
+  const fileMetadataRef = useRef<FileMetadata | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -132,6 +133,7 @@ export const ReceiveFileTab = () => {
         const metadata: FileMetadata = JSON.parse(data);
         console.log("Parsed metadata:", metadata);
         setFileMetadata(metadata);
+        fileMetadataRef.current = metadata; // Store in ref for immediate access
         setConnectionState("receiving");
         setStatus(`Receiving ${metadata.name}...`);
         expectedSizeRef.current = metadata.size;
@@ -164,15 +166,16 @@ export const ReceiveFileTab = () => {
 
   const completeFileReceive = () => {
     console.log("completeFileReceive called");
-    if (!fileMetadata) {
-      console.log("No file metadata available");
+    const metadata = fileMetadataRef.current;
+    if (!metadata) {
+      console.log("No file metadata available in ref");
       return;
     }
 
     try {
       console.log("Creating blob from", receivedChunksRef.current.length, "chunks");
       // Combine all chunks into a single blob
-      const blob = new Blob(receivedChunksRef.current, { type: fileMetadata.type });
+      const blob = new Blob(receivedChunksRef.current, { type: metadata.type });
       const url = URL.createObjectURL(blob);
       
       console.log("Blob created successfully, size:", blob.size);
@@ -189,9 +192,9 @@ export const ReceiveFileTab = () => {
       });
 
       console.log("File received successfully:", {
-        name: fileMetadata.name,
+        name: metadata.name,
         size: blob.size,
-        type: fileMetadata.type
+        type: metadata.type
       });
 
     } catch (error) {
