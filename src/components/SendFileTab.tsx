@@ -3,8 +3,11 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Upload, FileText, Copy, Link, Send, CheckCircle2 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Upload, FileText, Copy, Link, Send, CheckCircle2, QrCode, Zap } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { QRCodeGenerator } from "./QRCodeGenerator";
+import { FilePreview } from "./FilePreview";
 
 interface FileInfo {
   name: string;
@@ -114,6 +117,18 @@ export const SendFileTab = () => {
 
       setConnectionState("waiting");
       setStatus("Share the code with the receiver and wait for their response");
+
+      // Auto-copy the shareable link
+      try {
+        await navigator.clipboard.writeText(link);
+        toast({
+          title: "Link Copied!",
+          description: "Shareable link copied to clipboard automatically",
+          variant: "default"
+        });
+      } catch (error) {
+        console.log("Auto-copy failed:", error);
+      }
 
     } catch (error) {
       console.error("Error generating offer:", error);
@@ -248,18 +263,21 @@ export const SendFileTab = () => {
       {/* File Selection */}
       <Card className="border-card-border">
         <CardContent className="p-6">
-          <h3 className="text-lg font-semibold mb-4 text-card-foreground">1. Select File</h3>
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-semibold">1</div>
+            <h3 className="text-lg font-semibold text-card-foreground">Select File</h3>
+          </div>
           
           {!selectedFile ? (
             <div
-              className="border-2 border-dashed border-card-border rounded-lg p-8 text-center cursor-pointer hover:border-primary/50 transition-colors"
+              className="border-2 border-dashed border-card-border rounded-lg p-8 text-center cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-all duration-300"
               onDrop={handleDrop}
               onDragOver={handleDragOver}
               onClick={() => fileInputRef.current?.click()}
             >
-              <Upload className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-              <p className="text-card-foreground mb-2">Drop your file here or click to browse</p>
-              <p className="text-sm text-muted-foreground">Any file type, any size</p>
+              <Upload className="w-16 h-16 mx-auto mb-4 text-primary/60" />
+              <p className="text-card-foreground mb-2 font-medium">Drop your file here or click to browse</p>
+              <p className="text-sm text-muted-foreground">Any file type, any size - fast peer-to-peer transfer</p>
               <input
                 ref={fileInputRef}
                 type="file"
@@ -268,19 +286,20 @@ export const SendFileTab = () => {
               />
             </div>
           ) : (
-            <div className="flex items-center gap-4 p-4 bg-muted rounded-lg">
-              <FileText className="w-8 h-8 text-primary" />
-              <div className="flex-1">
-                <p className="font-medium text-card-foreground">{selectedFile.name}</p>
-                <p className="text-sm text-muted-foreground">{formatFileSize(selectedFile.size)}</p>
+            <div className="space-y-4">
+              <FilePreview file={selectedFile.file} />
+              <div className="flex justify-between items-center">
+                <div className="text-sm text-muted-foreground">
+                  Ready to share • {formatFileSize(selectedFile.size)}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSelectedFile(null)}
+                >
+                  Change File
+                </Button>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setSelectedFile(null)}
-              >
-                Remove
-              </Button>
             </div>
           )}
         </CardContent>
@@ -290,13 +309,21 @@ export const SendFileTab = () => {
       {selectedFile && connectionState === "idle" && (
         <Card className="border-card-border">
           <CardContent className="p-6">
-            <h3 className="text-lg font-semibold mb-4 text-card-foreground">2. Generate Connection Code</h3>
-            <Button 
-              onClick={generateOffer}
-              className="bg-gradient-primary hover:shadow-button transition-all duration-300"
-            >
-              Generate Code
-            </Button>
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-semibold">2</div>
+              <h3 className="text-lg font-semibold text-card-foreground">Generate Connection</h3>
+            </div>
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">Create a secure connection to share your file</p>
+              <Button 
+                onClick={generateOffer}
+                className="w-full bg-gradient-primary hover:shadow-button transition-all duration-300"
+                size="lg"
+              >
+                <Zap className="w-4 h-4 mr-2" />
+                Generate Share Code
+              </Button>
+            </div>
           </CardContent>
         </Card>
       )}
@@ -305,58 +332,81 @@ export const SendFileTab = () => {
       {offer && (
         <Card className="border-card-border">
           <CardContent className="p-6">
-            <h3 className="text-lg font-semibold mb-4 text-card-foreground">3. Share Connection Code</h3>
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-semibold">3</div>
+              <h3 className="text-lg font-semibold text-card-foreground">Share Connection</h3>
+            </div>
             
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium text-card-foreground mb-2 block">
-                  Connection Code (JSON)
-                </label>
-                <Textarea
-                  value={offer}
-                  readOnly
-                  className="font-mono text-xs bg-muted"
-                  rows={4}
-                />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className={`mt-2 ${copySuccess === 'Connection code' ? 'copy-success' : ''}`}
-                  onClick={() => copyToClipboard(offer, "Connection code")}
-                >
-                  {copySuccess === 'Connection code' ? (
-                    <CheckCircle2 className="w-4 h-4 mr-2" />
-                  ) : (
-                    <Copy className="w-4 h-4 mr-2" />
-                  )}
-                  {copySuccess === 'Connection code' ? 'Copied!' : 'Copy Code'}
-                </Button>
-              </div>
+            <Tabs defaultValue="link" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="link">Quick Link</TabsTrigger>
+                <TabsTrigger value="qr">QR Code</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="link" className="space-y-4">
+                <div className="p-4 bg-success/10 rounded-lg border border-success/20">
+                  <p className="text-sm text-success font-medium mb-2">✓ Link copied automatically!</p>
+                  <p className="text-xs text-muted-foreground">Share this link with the receiver to start the transfer instantly</p>
+                </div>
+                
+                <div>
+                  <label className="text-sm font-medium text-card-foreground mb-2 block">
+                    Shareable Link (One-Click)
+                  </label>
+                  <Textarea
+                    value={shareableLink}
+                    readOnly
+                    className="font-mono text-xs bg-muted"
+                    rows={2}
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className={`mt-2 w-full ${copySuccess === 'Shareable link' ? 'copy-success' : ''}`}
+                    onClick={() => copyToClipboard(shareableLink, "Shareable link")}
+                  >
+                    {copySuccess === 'Shareable link' ? (
+                      <CheckCircle2 className="w-4 h-4 mr-2" />
+                    ) : (
+                      <Link className="w-4 h-4 mr-2" />
+                    )}
+                    {copySuccess === 'Shareable link' ? 'Copied!' : 'Copy Link Again'}
+                  </Button>
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="qr" className="space-y-4">
+                <div className="text-center">
+                  <p className="text-sm text-muted-foreground mb-4">Scan this QR code to receive the file instantly</p>
+                  <div className="flex justify-center">
+                    <QRCodeGenerator text={shareableLink} size={200} />
+                  </div>
+                </div>
+              </TabsContent>
+            </Tabs>
 
-              <div>
-                <label className="text-sm font-medium text-card-foreground mb-2 block">
-                  Shareable Link
-                </label>
-                <Textarea
-                  value={shareableLink}
-                  readOnly
-                  className="font-mono text-xs bg-muted"
-                  rows={2}
-                />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className={`mt-2 ${copySuccess === 'Shareable link' ? 'copy-success' : ''}`}
-                  onClick={() => copyToClipboard(shareableLink, "Shareable link")}
-                >
-                  {copySuccess === 'Shareable link' ? (
-                    <CheckCircle2 className="w-4 h-4 mr-2" />
-                  ) : (
-                    <Link className="w-4 h-4 mr-2" />
-                  )}
-                  {copySuccess === 'Shareable link' ? 'Copied!' : 'Copy Link'}
-                </Button>
-              </div>
+            <div className="mt-6 p-4 bg-muted/50 rounded-lg">
+              <p className="text-sm text-card-foreground font-medium mb-1">Alternative: Manual Code Share</p>
+              <p className="text-xs text-muted-foreground mb-3">If the link doesn't work, share this JSON code instead:</p>
+              <Textarea
+                value={offer}
+                readOnly
+                className="font-mono text-xs bg-background"
+                rows={3}
+              />
+              <Button
+                variant="ghost"
+                size="sm"
+                className={`mt-2 ${copySuccess === 'Connection code' ? 'copy-success' : ''}`}
+                onClick={() => copyToClipboard(offer, "Connection code")}
+              >
+                {copySuccess === 'Connection code' ? (
+                  <CheckCircle2 className="w-4 h-4 mr-2" />
+                ) : (
+                  <Copy className="w-4 h-4 mr-2" />
+                )}
+                {copySuccess === 'Connection code' ? 'Copied!' : 'Copy JSON Code'}
+              </Button>
             </div>
           </CardContent>
         </Card>
@@ -366,9 +416,17 @@ export const SendFileTab = () => {
       {connectionState === "waiting" && (
         <Card className="border-card-border">
           <CardContent className="p-6">
-            <h3 className="text-lg font-semibold mb-4 text-card-foreground">4. Paste Receiver's Response</h3>
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-semibold">4</div>
+              <h3 className="text-lg font-semibold text-card-foreground">Paste Receiver's Response</h3>
+            </div>
             
             <div className="space-y-4">
+              <div className="p-4 bg-orange/10 rounded-lg border border-orange/20">
+                <p className="text-sm text-orange font-medium mb-1">⚡ Waiting for receiver...</p>
+                <p className="text-xs text-muted-foreground">Once the receiver clicks your link or scans the QR code, they'll generate a response code for you to paste here.</p>
+              </div>
+              
               <Textarea
                 placeholder="Paste the response code from the receiver here..."
                 value={answerText}
@@ -379,10 +437,11 @@ export const SendFileTab = () => {
               <Button
                 onClick={connectAndSend}
                 disabled={!answerText.trim()}
-                className="bg-gradient-primary hover:shadow-button transition-all duration-300"
+                className="w-full bg-gradient-primary hover:shadow-button transition-all duration-300"
+                size="lg"
               >
                 <Send className="w-4 h-4 mr-2" />
-                Connect & Send
+                Connect & Start Transfer
               </Button>
             </div>
           </CardContent>

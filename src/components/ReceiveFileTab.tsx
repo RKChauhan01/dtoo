@@ -3,8 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Download, Copy, CheckCircle2, FileText } from "lucide-react";
+import { Download, Copy, CheckCircle2, FileText, Zap, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { FilePreview } from "./FilePreview";
 
 interface FileMetadata {
   name: string;
@@ -252,9 +253,19 @@ export const ReceiveFileTab = () => {
       {/* Paste Offer */}
       <Card className="border-card-border">
         <CardContent className="p-6">
-          <h3 className="text-lg font-semibold mb-4 text-card-foreground">1. Paste Sender's Code</h3>
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-semibold">1</div>
+            <h3 className="text-lg font-semibold text-card-foreground">Paste Sender's Code</h3>
+          </div>
           
           <div className="space-y-4">
+            {offerText && (
+              <div className="p-4 bg-success/10 rounded-lg border border-success/20">
+                <p className="text-sm text-success font-medium mb-1">✓ Code loaded successfully!</p>
+                <p className="text-xs text-muted-foreground">Connection code is ready. Click the button below to generate your response.</p>
+              </div>
+            )}
+            
             <Textarea
               placeholder="Paste the connection code from the sender here..."
               value={offerText}
@@ -265,8 +276,10 @@ export const ReceiveFileTab = () => {
             <Button
               onClick={generateAnswer}
               disabled={!offerText.trim() || connectionState !== "idle"}
-              className="bg-gradient-primary hover:shadow-button transition-all duration-300"
+              className="w-full bg-gradient-primary hover:shadow-button transition-all duration-300"
+              size="lg"
             >
+              <Zap className="w-4 h-4 mr-2" />
               Generate Response Code
             </Button>
           </div>
@@ -277,9 +290,17 @@ export const ReceiveFileTab = () => {
       {answer && (
         <Card className="border-card-border">
           <CardContent className="p-6">
-            <h3 className="text-lg font-semibold mb-4 text-card-foreground">2. Share Response Code</h3>
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-semibold">2</div>
+              <h3 className="text-lg font-semibold text-card-foreground">Share Response Code</h3>
+            </div>
             
             <div className="space-y-4">
+              <div className="p-4 bg-success/10 rounded-lg border border-success/20">
+                <p className="text-sm text-success font-medium mb-1">✓ Response code generated!</p>
+                <p className="text-xs text-muted-foreground">Copy this code and send it back to the sender to establish connection.</p>
+              </div>
+              
               <Textarea
                 value={answer}
                 readOnly
@@ -289,7 +310,7 @@ export const ReceiveFileTab = () => {
               <Button
                 variant="outline"
                 size="sm"
-                className={copySuccess ? 'copy-success' : ''}
+                className={`w-full ${copySuccess ? 'copy-success' : ''}`}
                 onClick={() => copyToClipboard(answer)}
               >
                 {copySuccess ? (
@@ -297,11 +318,13 @@ export const ReceiveFileTab = () => {
                 ) : (
                   <Copy className="w-4 h-4 mr-2" />
                 )}
-                {copySuccess ? 'Copied!' : 'Copy Code'}
+                {copySuccess ? 'Copied!' : 'Copy Response Code'}
               </Button>
-              <p className="text-sm text-muted-foreground">
-                Send this response code back to the sender
-              </p>
+              
+              <div className="p-4 bg-orange/10 rounded-lg border border-orange/20">
+                <p className="text-sm text-orange font-medium mb-1">⚡ Waiting for connection...</p>
+                <p className="text-xs text-muted-foreground">Send this response code back to the sender. Once they paste it, the file transfer will begin automatically.</p>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -311,13 +334,23 @@ export const ReceiveFileTab = () => {
       {fileMetadata && (
         <Card className="border-card-border">
           <CardContent className="p-6">
-            <h3 className="text-lg font-semibold mb-4 text-card-foreground">Incoming File</h3>
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-semibold">3</div>
+              <h3 className="text-lg font-semibold text-card-foreground">Incoming File</h3>
+            </div>
             
-            <div className="flex items-center gap-4 p-4 bg-muted rounded-lg">
+            <div className="flex items-center gap-4 p-4 bg-muted rounded-lg border-2 border-dashed border-card-border">
               <FileText className="w-8 h-8 text-primary" />
               <div className="flex-1">
                 <p className="font-medium text-card-foreground">{fileMetadata.name}</p>
                 <p className="text-sm text-muted-foreground">{formatFileSize(fileMetadata.size)}</p>
+                <p className="text-xs text-muted-foreground">{fileMetadata.type || 'Unknown type'}</p>
+              </div>
+              <div className="text-right">
+                <div className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Clock className="w-3 h-3" />
+                  Ready to receive
+                </div>
               </div>
             </div>
           </CardContent>
@@ -328,9 +361,24 @@ export const ReceiveFileTab = () => {
       {connectionState === "receiving" && (
         <Card className="border-card-border">
           <CardContent className="p-6">
-            <h3 className="text-lg font-semibold mb-4 text-card-foreground">Receiving File</h3>
-            <Progress value={receiveProgress} className="mb-2" />
-            <p className="text-sm text-muted-foreground">{status}</p>
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-semibold">4</div>
+              <h3 className="text-lg font-semibold text-card-foreground">Receiving File</h3>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-card-foreground">{fileMetadata?.name}</span>
+                <span className="text-sm text-muted-foreground">{receiveProgress}%</span>
+              </div>
+              
+              <Progress value={receiveProgress} className="h-2" />
+              
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>{status}</span>
+                <span>{fileMetadata ? formatFileSize(fileMetadata.size) : ''}</span>
+              </div>
+            </div>
           </CardContent>
         </Card>
       )}
@@ -339,24 +387,32 @@ export const ReceiveFileTab = () => {
       {connectionState === "complete" && downloadUrl && fileMetadata && (
         <Card className="border-card-border">
           <CardContent className="p-6">
-            <h3 className="text-lg font-semibold mb-4 text-card-foreground">Download Ready</h3>
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-8 h-8 rounded-full bg-success text-success-foreground flex items-center justify-center text-sm font-semibold">✓</div>
+              <h3 className="text-lg font-semibold text-card-foreground">Download Ready</h3>
+            </div>
             
-            <div className="text-center space-y-4">
-              <div className="flex items-center justify-center gap-4 p-4 bg-success/10 rounded-lg">
-                <CheckCircle2 className="w-8 h-8 text-success" />
+            <div className="text-center space-y-6">
+              <div className="flex items-center justify-center gap-4 p-6 bg-success/10 rounded-lg border border-success/20">
+                <CheckCircle2 className="w-12 h-12 text-success" />
                 <div>
-                  <p className="font-medium text-card-foreground">File received successfully!</p>
-                  <p className="text-sm text-muted-foreground">{fileMetadata.name}</p>
+                  <p className="font-semibold text-card-foreground text-lg">File received successfully!</p>
+                  <p className="text-sm text-muted-foreground">{fileMetadata.name} • {formatFileSize(fileMetadata.size)}</p>
                 </div>
               </div>
               
               <Button
                 onClick={downloadFile}
-                className="bg-gradient-primary hover:shadow-button transition-all duration-300"
+                className="w-full bg-gradient-primary hover:shadow-button transition-all duration-300"
+                size="lg"
               >
-                <Download className="w-4 h-4 mr-2" />
+                <Download className="w-5 h-5 mr-2" />
                 Download {fileMetadata.name}
               </Button>
+              
+              <p className="text-xs text-muted-foreground">
+                Your file is ready and has been processed securely through peer-to-peer connection
+              </p>
             </div>
           </CardContent>
         </Card>
