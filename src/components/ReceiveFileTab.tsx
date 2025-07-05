@@ -123,10 +123,14 @@ export const ReceiveFileTab = () => {
   };
 
   const handleDataChannelMessage = (data: any) => {
+    console.log("Data channel message received, type:", typeof data, "data:", data);
+    
     if (typeof data === "string") {
       // First message should be metadata
+      console.log("Received string message, parsing as metadata:", data);
       try {
         const metadata: FileMetadata = JSON.parse(data);
+        console.log("Parsed metadata:", metadata);
         setFileMetadata(metadata);
         setConnectionState("receiving");
         setStatus(`Receiving ${metadata.name}...`);
@@ -134,7 +138,7 @@ export const ReceiveFileTab = () => {
         receivedSizeRef.current = 0;
         receivedChunksRef.current = [];
         setReceiveProgress(0);
-        console.log("File metadata received:", metadata);
+        console.log("File metadata set successfully:", metadata);
       } catch (error) {
         console.error("Error parsing metadata:", error);
       }
