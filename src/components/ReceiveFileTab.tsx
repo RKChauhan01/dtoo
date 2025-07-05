@@ -159,12 +159,19 @@ export const ReceiveFileTab = () => {
   };
 
   const completeFileReceive = () => {
-    if (!fileMetadata) return;
+    console.log("completeFileReceive called");
+    if (!fileMetadata) {
+      console.log("No file metadata available");
+      return;
+    }
 
     try {
+      console.log("Creating blob from", receivedChunksRef.current.length, "chunks");
       // Combine all chunks into a single blob
       const blob = new Blob(receivedChunksRef.current, { type: fileMetadata.type });
       const url = URL.createObjectURL(blob);
+      
+      console.log("Blob created successfully, size:", blob.size);
       
       setDownloadUrl(url);
       setConnectionState("complete");
