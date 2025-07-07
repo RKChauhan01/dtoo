@@ -59,7 +59,7 @@ export const ReceiveSection = () => {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold text-card-foreground">Files</h3>
-          <Button variant="outline" size="sm" onClick={handleRefresh} className="text-muted-foreground">
+          <Button variant="outline" size="sm" onClick={handleRefresh} className="bg-rose-700 hover:bg-rose-600 text-white">
             <RefreshCw className="w-4 h-4 mr-2" />
             Refresh
           </Button>
