@@ -130,9 +130,7 @@ export const SendSection = () => {
         </TabsList>
         
         <TabsContent value="direct" className="mt-4">
-          <div className="text-center text-muted-foreground">
-            Direct peer-to-peer file transfer
-          </div>
+          
         </TabsContent>
         
         <TabsContent value="link" className="mt-4">
