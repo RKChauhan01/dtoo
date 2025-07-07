@@ -45,7 +45,7 @@ export const ReceiveSection = () => {
           </div>
         </div>
         
-        <Input placeholder="Enter 6-digit code" value={code} onChange={e => setCode(e.target.value.slice(0, 6))} maxLength={6} className="text-center text-2xl font-mono py-6 mb-4 bg-white" />
+        <Input placeholder="Enter 6-digit code" value={code} onChange={e => setCode(e.target.value.slice(0, 6))} maxLength={6} className="text-center text-4xl font-mono py-6 mb-4 bg-white" />
         
         <Button onClick={handleReceive} disabled={code.length !== 6 || isLoading} className="w-full bg-accent-purple hover:bg-accent-purple/90 text-white py-6 text-lg font-medium rounded-xl">
           {isLoading ? <>
