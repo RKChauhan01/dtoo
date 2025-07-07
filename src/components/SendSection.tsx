@@ -81,7 +81,7 @@ export const SendSection = () => {
       });
     }
   };
-  return <div className="p-8">
+  return <div className="p-8 bg-pink-50">
       {/* File Upload Area */}
       <div className={`border-2 border-dashed rounded-2xl p-12 text-center cursor-pointer transition-colors mb-6 ${selectedFile ? "border-primary bg-primary/5" : "border-gray-300 hover:border-primary/50"}`} onDrop={handleDrop} onDragOver={handleDragOver} onClick={() => !selectedFile && fileInputRef.current?.click()}>
         {selectedFile ? <div className="space-y-2">
