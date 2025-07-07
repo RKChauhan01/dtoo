@@ -11,15 +11,17 @@ All colors MUST be HSL.
     --background: 240 10% 3.9%;
     --foreground: 0 0% 98%;
     
-    /* Brand colors for file sharing theme */
-    --primary: 266 83% 58%;
+    /* Brand colors matching drophere.io theme */
+    --primary: 339 82% 62%;
     --primary-foreground: 0 0% 100%;
-    --primary-glow: 270 95% 75%;
+    --primary-glow: 339 82% 75%;
+    --secondary-pink: 264 89% 58%;
+    --accent-purple: 283 100% 60%;
     
     /* Card and surface colors */
-    --card: 240 8% 6%;
-    --card-foreground: 0 0% 98%;
-    --card-border: 240 8% 12%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 20%;
+    --card-border: 240 20% 90%;
     
     /* Secondary colors */
     --secondary: 240 5% 15%;
@@ -47,9 +49,10 @@ All colors MUST be HSL.
     --ring: 266 83% 58%;
     
     /* Gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(266 83% 58%), hsl(285 85% 45%));
-    --gradient-hero: linear-gradient(135deg, hsl(240 10% 3.9%) 0%, hsl(260 15% 8%) 50%, hsl(280 20% 12%) 100%);
-    --gradient-card: linear-gradient(145deg, hsl(240 8% 6%) 0%, hsl(260 12% 10%) 100%);
+    --gradient-primary: linear-gradient(135deg, hsl(339 82% 62%), hsl(264 89% 58%));
+    --gradient-hero: linear-gradient(135deg, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.6) 100%);
+    --gradient-card: linear-gradient(145deg, hsl(0 0% 100%) 0%, hsl(0 0% 98%) 100%);
+    --gradient-overlay: linear-gradient(135deg, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.5) 100%);
     
     /* Shadows and effects */
     --shadow-glow: 0 0 40px hsl(270 95% 75% / 0.3);
@@ -71,8 +74,21 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground font-sans;
-    background: var(--gradient-hero);
+    background: url('/src/assets/mountain-bg.jpg') center/cover no-repeat;
+    background-attachment: fixed;
     min-height: 100vh;
+    position: relative;
+  }
+  
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--gradient-overlay);
+    z-index: -1;
   }
 }
 
