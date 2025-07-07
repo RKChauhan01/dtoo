@@ -154,7 +154,7 @@ export const SendSection = () => {
       color: !selectedFile || isLoading || sendMethod === "email" && !email ? 'hsl(240 3.8% 46.1%)' : 'white',
       borderColor: !selectedFile || isLoading || sendMethod === "email" && !email ? 'hsl(240 20% 80%)' : 'hsl(283 100% 60%)',
       cursor: !selectedFile || isLoading || sendMethod === "email" && !email ? 'not-allowed' : 'pointer'
-    }} className="w-full py-6 text-lg font-medium rounded-xl border-2 transition-all duration-200 bg-rose-700 hover:bg-rose-600">
+    }} className="w-full py-6 text-lg font-medium rounded-xl border-2 transition-all duration-200 bg-[#ef2c82]">
         {isLoading ? <>
             <Send className="w-5 h-5 mr-2 animate-pulse" />
             GENERATING CODE...
