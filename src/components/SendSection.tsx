@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Mail, Send } from "lucide-react";
+import { Plus, Mail, Send, Copy, Link } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface FileInfo {
@@ -19,6 +19,9 @@ export const SendSection = () => {
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [connectionCode, setConnectionCode] = useState("");
+  const [shareableLink, setShareableLink] = useState("");
+  const [showCodes, setShowCodes] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -56,18 +59,38 @@ export const SendSection = () => {
     
     setIsLoading(true);
     
-    // Simulate sending process
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    // Simulate connection code generation
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    const code = Math.random().toString(36).substr(2, 6).toUpperCase();
+    const link = `${window.location.origin}#receive=${code}`;
+    
+    setConnectionCode(code);
+    setShareableLink(link);
+    setShowCodes(true);
     
     toast({
-      title: "File Sent Successfully!",
-      description: `${selectedFile.name} has been sent via ${sendMethod}`,
+      title: "Connection Code Generated!",
+      description: `Share the code ${code} with the receiver`,
     });
     
     setIsLoading(false);
-    setSelectedFile(null);
-    setEmail("");
-    setMessage("");
+  };
+
+  const copyToClipboard = async (text: string, type: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast({
+        title: "Copied!",
+        description: `${type} copied to clipboard`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to copy to clipboard",
+        variant: "destructive"
+      });
+    }
   };
 
   return (
@@ -190,12 +213,53 @@ export const SendSection = () => {
         {isLoading ? (
           <>
             <Send className="w-5 h-5 mr-2 animate-pulse" />
-            SENDING...
+            GENERATING CODE...
           </>
         ) : (
           "SEND"
         )}
       </Button>
+
+      {/* Connection Codes */}
+      {showCodes && (
+        <div className="mt-6 space-y-4 p-4 bg-gray-50 rounded-lg">
+          <h3 className="font-semibold text-card-foreground">Share with Receiver:</h3>
+          
+          <div className="space-y-3">
+            <div>
+              <label className="text-sm font-medium text-muted-foreground">6-Digit Code:</label>
+              <div className="flex items-center gap-2 mt-1">
+                <div className="flex-1 p-3 bg-white border rounded-lg font-mono text-lg text-center">
+                  {connectionCode}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => copyToClipboard(connectionCode, "Code")}
+                >
+                  <Copy className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+            
+            <div>
+              <label className="text-sm font-medium text-muted-foreground">Shareable Link:</label>
+              <div className="flex items-center gap-2 mt-1">
+                <div className="flex-1 p-3 bg-white border rounded-lg text-sm truncate">
+                  {shareableLink}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => copyToClipboard(shareableLink, "Link")}
+                >
+                  <Link className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
