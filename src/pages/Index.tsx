@@ -5,8 +5,10 @@ import { SendFileTab } from "@/components/SendFileTab";
 import { ReceiveFileTab } from "@/components/ReceiveFileTab";
 import { Share, File, Zap, Shield, Globe } from "lucide-react";
 import heroImage from "@/assets/hero-image.jpg";
+
 const Index = () => {
   const [activeTab, setActiveTab] = useState("send");
+
   useEffect(() => {
     // Check for receive URL parameter on page load
     const hash = window.location.hash;
@@ -14,14 +16,20 @@ const Index = () => {
       setActiveTab("receive");
     }
   }, []);
-  return <div className="min-h-screen bg-gradient-hero">
+
+  return (
+    <div className="min-h-screen bg-gradient-hero">
       {/* Hero Section */}
       <div className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-transparent to-transparent" />
         <div className="container mx-auto px-4 py-20">
           <div className="max-w-4xl mx-auto text-center space-y-8">
             <div className="relative">
-              <img src={heroImage} alt="File sharing visualization" className="w-full h-64 object-cover rounded-2xl shadow-card mb-8 opacity-80" />
+              <img 
+                src={heroImage} 
+                alt="File sharing visualization" 
+                className="w-full h-64 object-cover rounded-2xl shadow-card mb-8 opacity-80"
+              />
               <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent rounded-2xl" />
             </div>
             
@@ -55,19 +63,19 @@ const Index = () => {
       <div className="container mx-auto px-4 py-12">
         <div className="max-w-4xl mx-auto">
           <Card className="glass-effect border-card-border">
-            <CardContent className="p-8 bg-gray-50">
+            <CardContent className="p-8">
               <div className="text-center mb-8">
                 <h2 className="text-3xl font-bold gradient-text mb-4">File Transfer Tool</h2>
-                <p className="text-zinc-950">Send or receive files instantly</p>
+                <p className="text-muted-foreground">Send or receive files instantly using WebRTC technology</p>
               </div>
               
-              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full bg-gray-50">
-                <TabsList className="grid w-full grid-cols-2 mb-8 bg-amber-500">
-                  <TabsTrigger value="send" className="flex items-center gap-2 text-zinc-50 bg-pink-950 hover:bg-pink-800">
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                <TabsList className="grid w-full grid-cols-2 bg-muted mb-8">
+                  <TabsTrigger value="send" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex items-center gap-2">
                     <Share className="w-4 h-4" />
                     Share File
                   </TabsTrigger>
-                  <TabsTrigger value="receive" className="flex items-center gap-2 bg-blue-950 hover:bg-blue-800 text-zinc-50">
+                  <TabsTrigger value="receive" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex items-center gap-2">
                     <File className="w-4 h-4" />
                     Receive File
                   </TabsTrigger>
@@ -112,6 +120,8 @@ const Index = () => {
           </div>
         </div>
       </div>
-    </div>;
+    </div>
+  );
 };
+
 export default Index;

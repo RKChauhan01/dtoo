@@ -5,11 +5,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Download, Copy, CheckCircle2, FileText } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+
 interface FileMetadata {
   name: string;
   size: number;
   type: string;
 }
+
 export const ReceiveFileTab = () => {
   const [offerText, setOfferText] = useState("");
   const [answer, setAnswer] = useState("");
@@ -19,14 +21,14 @@ export const ReceiveFileTab = () => {
   const [fileMetadata, setFileMetadata] = useState<FileMetadata | null>(null);
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   const [copySuccess, setCopySuccess] = useState(false);
+  
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const receivedChunksRef = useRef<ArrayBuffer[]>([]);
   const expectedSizeRef = useRef<number>(0);
   const receivedSizeRef = useRef<number>(0);
   const fileMetadataRef = useRef<FileMetadata | null>(null);
-  const {
-    toast
-  } = useToast();
+  const { toast } = useToast();
+
   useEffect(() => {
     // Check for receive URL parameter on component mount
     const hash = window.location.hash;
@@ -36,7 +38,7 @@ export const ReceiveFileTab = () => {
         const offerJson = atob(base64Offer);
         setOfferText(offerJson);
         setStatus("Offer loaded from URL. Click 'Generate Response Code' to continue.");
-
+        
         // Clear the hash from URL
         window.history.replaceState(null, "", window.location.pathname);
       } catch (error) {
@@ -45,38 +47,44 @@ export const ReceiveFileTab = () => {
       }
     }
   }, []);
+
   const generateAnswer = async () => {
     if (!offerText.trim()) return;
+
     try {
       setConnectionState("generating");
       setStatus("Generating response code...");
 
       // Create RTCPeerConnection with STUN servers
       const peerConnection = new RTCPeerConnection({
-        iceServers: [{
-          urls: "stun:stun.l.google.com:19302"
-        }, {
-          urls: "stun:stun1.l.google.com:19302"
-        }]
+        iceServers: [
+          { urls: "stun:stun.l.google.com:19302" },
+          { urls: "stun:stun1.l.google.com:19302" }
+        ]
       });
+
       peerConnectionRef.current = peerConnection;
 
       // Handle incoming data channel
-      peerConnection.ondatachannel = event => {
+      peerConnection.ondatachannel = (event) => {
         const dataChannel = event.channel;
         console.log("Data channel received:", dataChannel.label);
+
         dataChannel.onopen = () => {
           console.log("Data channel opened");
           setConnectionState("waiting");
           setStatus("Connected! Waiting for file...");
         };
-        dataChannel.onmessage = event => {
+
+        dataChannel.onmessage = (event) => {
           handleDataChannelMessage(event.data);
         };
+
         dataChannel.onclose = () => {
           console.log("Data channel closed");
         };
-        dataChannel.onerror = error => {
+
+        dataChannel.onerror = (error) => {
           console.error("Data channel error:", error);
           setStatus("Error: Connection failed");
         };
@@ -91,17 +99,19 @@ export const ReceiveFileTab = () => {
       await peerConnection.setLocalDescription(answer);
 
       // Wait for ICE gathering to complete
-      await new Promise<void>(resolve => {
-        peerConnection.onicecandidate = event => {
+      await new Promise<void>((resolve) => {
+        peerConnection.onicecandidate = (event) => {
           if (event.candidate === null) {
             // ICE gathering complete
             resolve();
           }
         };
       });
+
       const answerJson = JSON.stringify(peerConnection.localDescription);
       setAnswer(answerJson);
       setStatus("Response code generated. Share it with the sender.");
+
     } catch (error) {
       console.error("Error generating answer:", error);
       setStatus("Error: Invalid offer code");
@@ -112,8 +122,10 @@ export const ReceiveFileTab = () => {
       });
     }
   };
+
   const handleDataChannelMessage = (data: any) => {
     console.log("Data channel message received, type:", typeof data, "data:", data);
+    
     if (typeof data === "string") {
       // First message should be metadata
       console.log("Received string message, parsing as metadata:", data);
@@ -136,10 +148,12 @@ export const ReceiveFileTab = () => {
       // File chunk received
       receivedChunksRef.current.push(data);
       receivedSizeRef.current += data.byteLength;
-      const progress = Math.round(receivedSizeRef.current / expectedSizeRef.current * 100);
+      
+      const progress = Math.round((receivedSizeRef.current / expectedSizeRef.current) * 100);
       setReceiveProgress(progress);
+      
       console.log(`Received: ${receivedSizeRef.current}/${expectedSizeRef.current} bytes (${progress}%)`);
-
+      
       // Check if we've received all data - use a small tolerance for floating point comparison
       if (receivedSizeRef.current >= expectedSizeRef.current || progress >= 100) {
         console.log("File transfer complete, calling completeFileReceive");
@@ -149,6 +163,7 @@ export const ReceiveFileTab = () => {
       }
     }
   };
+
   const completeFileReceive = () => {
     console.log("completeFileReceive called");
     const metadata = fileMetadataRef.current;
@@ -156,28 +171,32 @@ export const ReceiveFileTab = () => {
       console.log("No file metadata available in ref");
       return;
     }
+
     try {
       console.log("Creating blob from", receivedChunksRef.current.length, "chunks");
       // Combine all chunks into a single blob
-      const blob = new Blob(receivedChunksRef.current, {
-        type: metadata.type
-      });
+      const blob = new Blob(receivedChunksRef.current, { type: metadata.type });
       const url = URL.createObjectURL(blob);
+      
       console.log("Blob created successfully, size:", blob.size);
+      
       setDownloadUrl(url);
       setConnectionState("complete");
       setStatus("File received successfully!");
       setReceiveProgress(100);
+      
       toast({
         title: "Success",
         description: "File received successfully!",
         variant: "default"
       });
+
       console.log("File received successfully:", {
         name: metadata.name,
         size: blob.size,
         type: metadata.type
       });
+
     } catch (error) {
       console.error("Error creating download:", error);
       setStatus("Error creating download");
@@ -188,6 +207,7 @@ export const ReceiveFileTab = () => {
       });
     }
   };
+
   const copyToClipboard = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
@@ -207,8 +227,10 @@ export const ReceiveFileTab = () => {
       });
     }
   };
+
   const downloadFile = () => {
     if (!downloadUrl || !fileMetadata) return;
+
     const link = document.createElement('a');
     link.href = downloadUrl;
     link.download = fileMetadata.name;
@@ -216,6 +238,7 @@ export const ReceiveFileTab = () => {
     link.click();
     document.body.removeChild(link);
   };
+
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
@@ -223,15 +246,27 @@ export const ReceiveFileTab = () => {
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
-  return <div className="space-y-6">
+
+  return (
+    <div className="space-y-6">
       {/* Paste Offer */}
       <Card className="border-card-border">
-        <CardContent className="p-6 bg-zinc-50">
-          <h3 className="text-lg font-semibold mb-4 text-zinc-950">Paste Sender's Code</h3>
+        <CardContent className="p-6">
+          <h3 className="text-lg font-semibold mb-4 text-card-foreground">1. Paste Sender's Code</h3>
           
           <div className="space-y-4">
-            <Textarea placeholder="Paste the connection code from the sender here..." value={offerText} onChange={e => setOfferText(e.target.value)} rows={4} className="font-mono text-xs bg-zinc-50" />
-            <Button onClick={generateAnswer} disabled={!offerText.trim() || connectionState !== "idle"} className="bg-gradient-primary hover:shadow-button transition-all duration-300">
+            <Textarea
+              placeholder="Paste the connection code from the sender here..."
+              value={offerText}
+              onChange={(e) => setOfferText(e.target.value)}
+              className="font-mono text-xs"
+              rows={4}
+            />
+            <Button
+              onClick={generateAnswer}
+              disabled={!offerText.trim() || connectionState !== "idle"}
+              className="bg-gradient-primary hover:shadow-button transition-all duration-300"
+            >
               Generate Response Code
             </Button>
           </div>
@@ -239,14 +274,29 @@ export const ReceiveFileTab = () => {
       </Card>
 
       {/* Response Code */}
-      {answer && <Card className="border-card-border">
+      {answer && (
+        <Card className="border-card-border">
           <CardContent className="p-6">
             <h3 className="text-lg font-semibold mb-4 text-card-foreground">2. Share Response Code</h3>
             
             <div className="space-y-4">
-              <Textarea value={answer} readOnly className="font-mono text-xs bg-muted" rows={4} />
-              <Button variant="outline" size="sm" className={copySuccess ? 'copy-success' : ''} onClick={() => copyToClipboard(answer)}>
-                {copySuccess ? <CheckCircle2 className="w-4 h-4 mr-2" /> : <Copy className="w-4 h-4 mr-2" />}
+              <Textarea
+                value={answer}
+                readOnly
+                className="font-mono text-xs bg-muted"
+                rows={4}
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                className={copySuccess ? 'copy-success' : ''}
+                onClick={() => copyToClipboard(answer)}
+              >
+                {copySuccess ? (
+                  <CheckCircle2 className="w-4 h-4 mr-2" />
+                ) : (
+                  <Copy className="w-4 h-4 mr-2" />
+                )}
                 {copySuccess ? 'Copied!' : 'Copy Code'}
               </Button>
               <p className="text-sm text-muted-foreground">
@@ -254,10 +304,12 @@ export const ReceiveFileTab = () => {
               </p>
             </div>
           </CardContent>
-        </Card>}
+        </Card>
+      )}
 
       {/* File Metadata */}
-      {fileMetadata && <Card className="border-card-border">
+      {fileMetadata && (
+        <Card className="border-card-border">
           <CardContent className="p-6">
             <h3 className="text-lg font-semibold mb-4 text-card-foreground">Incoming File</h3>
             
@@ -269,19 +321,23 @@ export const ReceiveFileTab = () => {
               </div>
             </div>
           </CardContent>
-        </Card>}
+        </Card>
+      )}
 
       {/* Progress */}
-      {connectionState === "receiving" && <Card className="border-card-border">
+      {connectionState === "receiving" && (
+        <Card className="border-card-border">
           <CardContent className="p-6">
             <h3 className="text-lg font-semibold mb-4 text-card-foreground">Receiving File</h3>
             <Progress value={receiveProgress} className="mb-2" />
             <p className="text-sm text-muted-foreground">{status}</p>
           </CardContent>
-        </Card>}
+        </Card>
+      )}
 
       {/* Download */}
-      {connectionState === "complete" && downloadUrl && fileMetadata && <Card className="border-card-border">
+      {connectionState === "complete" && downloadUrl && fileMetadata && (
+        <Card className="border-card-border">
           <CardContent className="p-6">
             <h3 className="text-lg font-semibold mb-4 text-card-foreground">Download Ready</h3>
             
@@ -294,19 +350,30 @@ export const ReceiveFileTab = () => {
                 </div>
               </div>
               
-              <Button onClick={downloadFile} className="bg-gradient-primary hover:shadow-button transition-all duration-300">
+              <Button
+                onClick={downloadFile}
+                className="bg-gradient-primary hover:shadow-button transition-all duration-300"
+              >
                 <Download className="w-4 h-4 mr-2" />
                 Download {fileMetadata.name}
               </Button>
             </div>
           </CardContent>
-        </Card>}
+        </Card>
+      )}
 
       {/* Status Messages */}
-      {status && <div className="text-center">
-          <p className={`text-sm ${connectionState === "complete" ? "text-success" : status.includes("Error") ? "text-destructive" : "text-muted-foreground"}`}>
+      {status && (
+        <div className="text-center">
+          <p className={`text-sm ${
+            connectionState === "complete" ? "text-success" : 
+            status.includes("Error") ? "text-destructive" : 
+            "text-muted-foreground"
+          }`}>
             {status}
           </p>
-        </div>}
-    </div>;
+        </div>
+      )}
+    </div>
+  );
 };
