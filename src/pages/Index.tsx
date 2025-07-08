@@ -55,19 +55,19 @@ const Index = () => {
       <div className="container mx-auto px-4 py-12">
         <div className="max-w-4xl mx-auto">
           <Card className="glass-effect border-card-border">
-            <CardContent className="p-8">
+            <CardContent className="p-8 bg-gray-50">
               <div className="text-center mb-8">
                 <h2 className="text-3xl font-bold gradient-text mb-4">File Transfer Tool</h2>
-                <p className="text-muted-foreground">Send or receive files instantly</p>
+                <p className="text-zinc-950">Send or receive files instantly</p>
               </div>
               
-              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <TabsList className="grid w-full grid-cols-2 bg-muted mb-8">
-                  <TabsTrigger value="send" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex items-center gap-2">
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full bg-gray-50">
+                <TabsList className="grid w-full grid-cols-2 mb-8 bg-zinc-50">
+                  <TabsTrigger value="send" className="flex items-center gap-2 text-zinc-50 bg-pink-950 hover:bg-pink-800">
                     <Share className="w-4 h-4" />
                     Share File
                   </TabsTrigger>
-                  <TabsTrigger value="receive" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex items-center gap-2">
+                  <TabsTrigger value="receive" className="data-[state=active]:text-primary-foreground flex items-center gap-2 bg-blue-950 hover:bg-blue-800">
                     <File className="w-4 h-4" />
                     Receive File
                   </TabsTrigger>

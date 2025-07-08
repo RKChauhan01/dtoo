@@ -226,11 +226,11 @@ export const ReceiveFileTab = () => {
   return <div className="space-y-6">
       {/* Paste Offer */}
       <Card className="border-card-border">
-        <CardContent className="p-6">
-          <h3 className="text-lg font-semibold mb-4 text-card-foreground">Paste Sender's Code</h3>
+        <CardContent className="p-6 bg-zinc-50">
+          <h3 className="text-lg font-semibold mb-4 text-zinc-950">Paste Sender's Code</h3>
           
           <div className="space-y-4">
-            <Textarea placeholder="Paste the connection code from the sender here..." value={offerText} onChange={e => setOfferText(e.target.value)} className="font-mono text-xs" rows={4} />
+            <Textarea placeholder="Paste the connection code from the sender here..." value={offerText} onChange={e => setOfferText(e.target.value)} rows={4} className="font-mono text-xs bg-zinc-50" />
             <Button onClick={generateAnswer} disabled={!offerText.trim() || connectionState !== "idle"} className="bg-gradient-primary hover:shadow-button transition-all duration-300">
               Generate Response Code
             </Button>

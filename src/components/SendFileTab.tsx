@@ -220,8 +220,8 @@ export const SendFileTab = () => {
   return <div className="space-y-6">
       {/* File Selection */}
       <Card className="border-card-border">
-        <CardContent className="p-6">
-          <h3 className="text-lg font-semibold mb-4 text-card-foreground">Select File</h3>
+        <CardContent className="p-6 bg-zinc-50">
+          <h3 className="text-lg font-semibold mb-4 text-zinc-950">Select File</h3>
           
           {!selectedFile ? <div className="border-2 border-dashed border-card-border rounded-lg p-8 text-center cursor-pointer hover:border-primary/50 transition-colors" onDrop={handleDrop} onDragOver={handleDragOver} onClick={() => fileInputRef.current?.click()}>
               <Upload className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
