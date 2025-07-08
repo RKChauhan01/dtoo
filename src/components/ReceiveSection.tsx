@@ -47,7 +47,12 @@ export const ReceiveSection = () => {
         
         <Input placeholder="Enter 6-digit code" value={code} onChange={e => setCode(e.target.value.slice(0, 6))} maxLength={6} className="text-center text-4xl font-mono py-6 mb-4 bg-white" />
         
-        <Button onClick={handleReceive} disabled={code.length !== 6 || isLoading} className="w-full bg-accent-purple hover:bg-accent-purple/90 text-white py-6 text-lg font-medium rounded-xl">
+        <Button onClick={handleReceive} disabled={code.length !== 6 || isLoading} className="w-full bg-primary hover:bg-primary/90 text-white py-6 text-lg font-medium rounded-xl" style={{
+          backgroundColor: code.length !== 6 || isLoading ? 'hsl(240 5% 90%)' : 'hsl(283 100% 60%)',
+          color: code.length !== 6 || isLoading ? 'hsl(240 3.8% 46.1%)' : 'white',
+          borderColor: code.length !== 6 || isLoading ? 'hsl(240 20% 80%)' : 'hsl(283 100% 60%)',
+          cursor: code.length !== 6 || isLoading ? 'not-allowed' : 'pointer'
+        }}>
           {isLoading ? <>
               <RefreshCw className="w-5 h-5 mr-2 animate-spin" />
               RECEIVING...
