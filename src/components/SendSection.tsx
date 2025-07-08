@@ -53,17 +53,54 @@ export const SendSection = () => {
     if (!selectedFile) return;
     setIsLoading(true);
 
-    // Simulate connection code generation
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    const code = Math.random().toString(36).substr(2, 6).toUpperCase();
-    const link = `${window.location.origin}#receive=${code}`;
-    setConnectionCode(code);
-    setShareableLink(link);
-    setShowCodes(true);
-    toast({
-      title: "Connection Code Generated!",
-      description: `Share the code ${code} with the receiver`
-    });
+    try {
+      // Generate a unique 6-digit code
+      const code = Math.random().toString(36).substr(2, 6).toUpperCase();
+      const link = `${window.location.origin}#receive=${code}`;
+      
+      // Store file data temporarily with the code (in a real app, this would be on a server)
+      // For now, we'll use localStorage as a simple demo
+      const fileData = {
+        code: code,
+        metadata: {
+          name: selectedFile.name,
+          size: selectedFile.size,
+          type: selectedFile.type
+        },
+        file: selectedFile.file,
+        timestamp: Date.now()
+      };
+      
+      // In a real implementation, you would send this to a server
+      // For demo purposes, we'll use localStorage
+      localStorage.setItem(`file_${code}`, JSON.stringify({
+        ...fileData,
+        fileArrayBuffer: await selectedFile.file.arrayBuffer()
+      }));
+      
+      setConnectionCode(code);
+      setShareableLink(link);
+      setShowCodes(true);
+      
+      toast({
+        title: "Connection Code Generated!",
+        description: `Share the code ${code} with the receiver`
+      });
+      
+      // Auto-cleanup after 1 hour
+      setTimeout(() => {
+        localStorage.removeItem(`file_${code}`);
+      }, 3600000);
+      
+    } catch (error) {
+      console.error("Error generating code:", error);
+      toast({
+        title: "Error",
+        description: "Failed to generate connection code",
+        variant: "destructive"
+      });
+    }
+    
     setIsLoading(false);
   };
   const copyToClipboard = async (text: string, type: string) => {
