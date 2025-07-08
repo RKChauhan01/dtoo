@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SendSection } from "./SendSection";
-import { ReceiveSection } from "./ReceiveSection";
+import { ReceiveFileTab } from "./ReceiveFileTab";
 export const MainCard = () => {
   const [activeTab, setActiveTab] = useState("send");
   return <div className="flex flex-col items-center justify-center min-h-screen pt-20 px-4">
@@ -20,7 +20,7 @@ export const MainCard = () => {
       {/* Main Card */}
       <Card className="w-full max-w-2xl bg-card border-card-border shadow-2xl">
         <CardContent className="p-0">
-          {activeTab === "send" ? <SendSection /> : <ReceiveSection />}
+          {activeTab === "send" ? <SendSection /> : <ReceiveFileTab />}
         </CardContent>
       </Card>
 
