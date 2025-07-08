@@ -5,10 +5,8 @@ import { SendFileTab } from "@/components/SendFileTab";
 import { ReceiveFileTab } from "@/components/ReceiveFileTab";
 import { Share, File, Zap, Shield, Globe } from "lucide-react";
 import heroImage from "@/assets/hero-image.jpg";
-
 const Index = () => {
   const [activeTab, setActiveTab] = useState("send");
-
   useEffect(() => {
     // Check for receive URL parameter on page load
     const hash = window.location.hash;
@@ -16,20 +14,14 @@ const Index = () => {
       setActiveTab("receive");
     }
   }, []);
-
-  return (
-    <div className="min-h-screen bg-gradient-hero">
+  return <div className="min-h-screen bg-gradient-hero">
       {/* Hero Section */}
       <div className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-transparent to-transparent" />
         <div className="container mx-auto px-4 py-20">
           <div className="max-w-4xl mx-auto text-center space-y-8">
             <div className="relative">
-              <img 
-                src={heroImage} 
-                alt="File sharing visualization" 
-                className="w-full h-64 object-cover rounded-2xl shadow-card mb-8 opacity-80"
-              />
+              <img src={heroImage} alt="File sharing visualization" className="w-full h-64 object-cover rounded-2xl shadow-card mb-8 opacity-80" />
               <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent rounded-2xl" />
             </div>
             
@@ -66,7 +58,7 @@ const Index = () => {
             <CardContent className="p-8">
               <div className="text-center mb-8">
                 <h2 className="text-3xl font-bold gradient-text mb-4">File Transfer Tool</h2>
-                <p className="text-muted-foreground">Send or receive files instantly using WebRTC technology</p>
+                <p className="text-muted-foreground">Send or receive files instantly</p>
               </div>
               
               <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -120,8 +112,6 @@ const Index = () => {
           </div>
         </div>
       </div>
-    </div>
-  );
+    </div>;
 };
-
 export default Index;
