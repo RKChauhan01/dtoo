@@ -85,7 +85,7 @@ export const ReceiveSection = () => {
       await new Promise(resolve => setTimeout(resolve, 1500));
 
       // Create blob from stored array buffer
-      const arrayBuffer = new Uint8Array(fileData.fileArrayBuffer).buffer;
+      const arrayBuffer = new Uint8Array(Object.values(fileData.fileArrayBuffer));
       const blob = new Blob([arrayBuffer], { type: fileData.metadata.type });
       
       const newFile: ReceivedFile = {
