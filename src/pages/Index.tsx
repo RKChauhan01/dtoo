@@ -67,7 +67,7 @@ const Index = () => {
                     <Share className="w-4 h-4" />
                     Share File
                   </TabsTrigger>
-                  <TabsTrigger value="receive" className="data-[state=active]:text-primary-foreground flex items-center gap-2 bg-blue-950 hover:bg-blue-800">
+                  <TabsTrigger value="receive" className="flex items-center gap-2 bg-blue-950 hover:bg-blue-800 text-zinc-50">
                     <File className="w-4 h-4" />
                     Receive File
                   </TabsTrigger>
