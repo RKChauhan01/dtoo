@@ -62,7 +62,7 @@ const Index = () => {
               </div>
               
               <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full bg-gray-50">
-                <TabsList className="grid w-full grid-cols-2 mb-8 bg-zinc-50">
+                <TabsList className="grid w-full grid-cols-2 mb-8 bg-amber-500">
                   <TabsTrigger value="send" className="flex items-center gap-2 text-zinc-50 bg-pink-950 hover:bg-pink-800">
                     <Share className="w-4 h-4" />
                     Share File
