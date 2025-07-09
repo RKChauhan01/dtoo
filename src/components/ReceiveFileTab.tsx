@@ -31,6 +31,13 @@ export const ReceiveFileTab = () => {
   const fileMetadataRef = useRef<FileMetadata | null>(null);
   const { toast } = useToast();
 
+  // Helper function to extract code from offer if needed
+  const extractCodeFromOffer = (offerJson: string): string | null => {
+    // This would be used if the offer contained the original code
+    // For now, we'll rely on the sixDigitCode state
+    return null;
+  };
+
   useEffect(() => {
     // Check for receive URL parameter on component mount
     const hash = window.location.hash;
@@ -151,13 +158,17 @@ export const ReceiveFileTab = () => {
       const answerJson = JSON.stringify(peerConnection.localDescription);
       setAnswer(answerJson);
       
-      // Generate a 6-digit response code for the sender
-      const responseCode = Math.floor(100000 + Math.random() * 900000).toString();
-      
-      // Store the answer with the response code
-      localStorage.setItem(`answer_${responseCode}`, answerJson);
-      
-      setStatus(`Your response code: ${responseCode}. Share this with the sender.`);
+      // Store the answer using the original 6-digit code for automatic connection
+      const originalCode = sixDigitCode || extractCodeFromOffer(offerToUse);
+      if (originalCode) {
+        localStorage.setItem(`answer_${originalCode}`, answerJson);
+        setStatus("Connected! File transfer will start automatically.");
+      } else {
+        // Fallback: Generate a 6-digit response code for manual sharing
+        const responseCode = Math.floor(100000 + Math.random() * 900000).toString();
+        localStorage.setItem(`answer_${responseCode}`, answerJson);
+        setStatus(`Your response code: ${responseCode}. Share this with the sender.`);
+      }
 
     } catch (error) {
       console.error("Error generating answer:", error);

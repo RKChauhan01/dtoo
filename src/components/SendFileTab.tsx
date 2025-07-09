@@ -32,6 +32,7 @@ export const SendFileTab = () => {
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const dataChannelRef = useRef<RTCDataChannel | null>(null);
   const { toast } = useToast();
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleFileSelect = (file: File) => {
     setSelectedFile({
@@ -59,6 +60,43 @@ export const SendFileTab = () => {
   const generateSixDigitCode = () => {
     return Math.floor(100000 + Math.random() * 900000).toString();
   };
+
+  // Start polling for receiver's answer
+  const startPollingForAnswer = (code: string, peerConnection: RTCPeerConnection) => {
+    const pollForAnswer = () => {
+      const answer = localStorage.getItem(`answer_${code}`);
+      if (answer) {
+        // Stop polling
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current);
+          pollingIntervalRef.current = null;
+        }
+        // Connect automatically
+        connectAndSend(answer);
+        setStatus("Receiver connected! Establishing connection...");
+      }
+    };
+
+    // Poll every 1000ms
+    pollingIntervalRef.current = setInterval(pollForAnswer, 1000);
+    
+    // Stop polling after 5 minutes to prevent indefinite polling
+    setTimeout(() => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+    }, 5 * 60 * 1000);
+  };
+
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+      }
+    };
+  }, []);
 
   // Generate QR code from URL
   const generateQRCode = async (url: string) => {
@@ -152,7 +190,10 @@ export const SendFileTab = () => {
       setQrCodeDataUrl(qrCodeUrl);
 
       setConnectionState("waiting");
-      setStatus("Share the 6-digit code with the receiver and wait for their response");
+      setStatus("Share the 6-digit code with the receiver. Connection will start automatically when receiver connects.");
+
+      // Start polling for receiver's answer
+      startPollingForAnswer(code, peerConnection);
 
     } catch (error) {
       console.error("Error generating offer:", error);
@@ -431,58 +472,71 @@ export const SendFileTab = () => {
         </Card>
       )}
 
-      {/* Receiver Response */}
+      {/* Waiting for Connection */}
       {connectionState === "waiting" && (
         <Card className="border-card-border">
           <CardContent className="p-6">
-            <h3 className="text-lg font-semibold mb-4 text-card-foreground">4. Enter Receiver's Response</h3>
+            <h3 className="text-lg font-semibold mb-4 text-card-foreground">4. Waiting for Receiver</h3>
             
-            <div className="space-y-6">
-              {/* 6-Digit Response Code Option */}
-              <div>
-                <label className="text-sm font-medium text-card-foreground mb-2 block">
-                  6-Digit Response Code
-                </label>
-                <div className="flex items-center gap-3">
-                  <Input
-                    placeholder="Enter 6-digit response code"
-                    value={receiverCode}
-                    onChange={(e) => setReceiverCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                    className="text-center text-xl font-mono tracking-widest"
-                    maxLength={6}
-                  />
-                  <Button
-                    onClick={handleReceiverCodeSubmit}
-                    disabled={receiverCode.length !== 6}
-                    className="bg-gradient-primary hover:shadow-button transition-all duration-300"
-                  >
-                    <Send className="w-4 h-4 mr-2" />
-                    Connect & Send
-                  </Button>
+            <div className="text-center space-y-4">
+              <div className="flex items-center justify-center gap-4 p-4 bg-info/10 rounded-lg">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                <div>
+                  <p className="font-medium text-card-foreground">Waiting for receiver to connect...</p>
+                  <p className="text-sm text-muted-foreground">Connection will start automatically when receiver joins</p>
                 </div>
               </div>
+              
+              <details className="text-left">
+                <summary className="text-sm text-muted-foreground cursor-pointer hover:text-card-foreground">
+                  Manual connection (if needed)
+                </summary>
+                <div className="mt-4 space-y-4 border-t pt-4">
+                  <div>
+                    <label className="text-sm font-medium text-card-foreground mb-2 block">
+                      6-Digit Response Code
+                    </label>
+                    <div className="flex items-center gap-3">
+                      <Input
+                        placeholder="Enter 6-digit response code"
+                        value={receiverCode}
+                        onChange={(e) => setReceiverCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                        className="text-center text-xl font-mono tracking-widest"
+                        maxLength={6}
+                      />
+                      <Button
+                        onClick={handleReceiverCodeSubmit}
+                        disabled={receiverCode.length !== 6}
+                        className="bg-gradient-primary hover:shadow-button transition-all duration-300"
+                      >
+                        <Send className="w-4 h-4 mr-2" />
+                        Connect & Send
+                      </Button>
+                    </div>
+                  </div>
 
-              {/* Alternative: Full Response Code */}
-              <div>
-                <label className="text-sm font-medium text-card-foreground mb-2 block">
-                  Alternative: Full Response Code
-                </label>
-                <Textarea
-                  placeholder="Or paste the full response code from the receiver here..."
-                  value={answerText}
-                  onChange={(e) => setAnswerText(e.target.value)}
-                  className="font-mono text-xs"
-                  rows={4}
-                />
-                <Button
-                  onClick={() => connectAndSend()}
-                  disabled={!answerText.trim()}
-                  className="mt-2 bg-gradient-primary hover:shadow-button transition-all duration-300"
-                >
-                  <Send className="w-4 h-4 mr-2" />
-                  Connect & Send
-                </Button>
-              </div>
+                  <div>
+                    <label className="text-sm font-medium text-card-foreground mb-2 block">
+                      Full Response Code
+                    </label>
+                    <Textarea
+                      placeholder="Or paste the full response code from the receiver here..."
+                      value={answerText}
+                      onChange={(e) => setAnswerText(e.target.value)}
+                      className="font-mono text-xs"
+                      rows={4}
+                    />
+                    <Button
+                      onClick={() => connectAndSend()}
+                      disabled={!answerText.trim()}
+                      className="mt-2 bg-gradient-primary hover:shadow-button transition-all duration-300"
+                    >
+                      <Send className="w-4 h-4 mr-2" />
+                      Connect & Send
+                    </Button>
+                  </div>
+                </div>
+              </details>
             </div>
           </CardContent>
         </Card>
