@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Download, Copy, CheckCircle2, FileText } from "lucide-react";
@@ -14,6 +15,7 @@ interface FileMetadata {
 
 export const ReceiveFileTab = () => {
   const [offerText, setOfferText] = useState("");
+  const [sixDigitCode, setSixDigitCode] = useState("");
   const [answer, setAnswer] = useState("");
   const [connectionState, setConnectionState] = useState<"idle" | "generating" | "waiting" | "receiving" | "complete">("idle");
   const [receiveProgress, setReceiveProgress] = useState(0);
@@ -48,12 +50,50 @@ export const ReceiveFileTab = () => {
     }
   }, []);
 
-  const generateAnswer = async () => {
-    if (!offerText.trim()) return;
+  // Handle 6-digit code input
+  const handleSixDigitCodeSubmit = async () => {
+    if (sixDigitCode.length !== 6) {
+      toast({
+        title: "Error",
+        description: "Please enter a valid 6-digit code",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      // Retrieve offer data using the 6-digit code
+      const storedOffer = localStorage.getItem(`offer_${sixDigitCode}`);
+      if (!storedOffer) {
+        setStatus("Error: Invalid 6-digit code");
+        toast({
+          title: "Error",
+          description: "Invalid 6-digit code or code has expired",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      setOfferText(storedOffer);
+      await generateAnswer(storedOffer);
+    } catch (error) {
+      console.error("Error with 6-digit code:", error);
+      setStatus("Error: Invalid 6-digit code");
+      toast({
+        title: "Error",
+        description: "Failed to process 6-digit code",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const generateAnswer = async (customOfferText?: string) => {
+    const offerToUse = customOfferText || offerText.trim();
+    if (!offerToUse) return;
 
     try {
       setConnectionState("generating");
-      setStatus("Generating response code...");
+      setStatus("Connecting to sender...");
 
       // Create RTCPeerConnection with STUN servers
       const peerConnection = new RTCPeerConnection({
@@ -91,7 +131,7 @@ export const ReceiveFileTab = () => {
       };
 
       // Parse and set remote description
-      const offer = JSON.parse(offerText.trim());
+      const offer = JSON.parse(offerToUse);
       await peerConnection.setRemoteDescription(offer);
 
       // Create answer
@@ -110,14 +150,21 @@ export const ReceiveFileTab = () => {
 
       const answerJson = JSON.stringify(peerConnection.localDescription);
       setAnswer(answerJson);
-      setStatus("Response code generated. Share it with the sender.");
+      
+      // Generate a 6-digit response code for the sender
+      const responseCode = Math.floor(100000 + Math.random() * 900000).toString();
+      
+      // Store the answer with the response code
+      localStorage.setItem(`answer_${responseCode}`, answerJson);
+      
+      setStatus(`Your response code: ${responseCode}. Share this with the sender.`);
 
     } catch (error) {
       console.error("Error generating answer:", error);
-      setStatus("Error: Invalid offer code");
+      setStatus("Error: Invalid connection code");
       toast({
         title: "Error",
-        description: "Invalid offer code format",
+        description: "Invalid connection code format",
         variant: "destructive"
       });
     }
@@ -249,21 +296,50 @@ export const ReceiveFileTab = () => {
 
   return (
     <div className="space-y-6">
-      {/* Paste Offer */}
+      {/* 6-Digit Code Input */}
       <Card className="border-card-border">
         <CardContent className="p-6">
-          <h3 className="text-lg font-semibold mb-4 text-card-foreground">1. Paste Sender's Code</h3>
+          <h3 className="text-lg font-semibold mb-4 text-card-foreground">1. Enter 6-Digit Code</h3>
+          
+          <div className="space-y-4">
+            <div>
+              <Input
+                placeholder="Enter 6-digit code from sender"
+                value={sixDigitCode}
+                onChange={(e) => setSixDigitCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                className="text-center text-2xl font-mono tracking-widest"
+                maxLength={6}
+              />
+              <p className="text-sm text-muted-foreground mt-2 text-center">
+                Enter the 6-digit code shared by the sender
+              </p>
+            </div>
+            <Button
+              onClick={handleSixDigitCodeSubmit}
+              disabled={sixDigitCode.length !== 6 || connectionState !== "idle"}
+              className="w-full bg-gradient-primary hover:shadow-button transition-all duration-300"
+            >
+              Connect & Receive File
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Alternative: Manual Code Entry */}
+      <Card className="border-card-border">
+        <CardContent className="p-6">
+          <h3 className="text-lg font-semibold mb-4 text-card-foreground">Alternative: Paste Full Code</h3>
           
           <div className="space-y-4">
             <Textarea
-              placeholder="Paste the connection code from the sender here..."
+              placeholder="Or paste the full connection code from the sender here..."
               value={offerText}
               onChange={(e) => setOfferText(e.target.value)}
               className="font-mono text-xs"
               rows={4}
             />
             <Button
-              onClick={generateAnswer}
+              onClick={() => generateAnswer()}
               disabled={!offerText.trim() || connectionState !== "idle"}
               className="bg-gradient-primary hover:shadow-button transition-all duration-300"
             >
@@ -273,35 +349,18 @@ export const ReceiveFileTab = () => {
         </CardContent>
       </Card>
 
-      {/* Response Code */}
+      {/* Response Code Display */}
       {answer && (
         <Card className="border-card-border">
           <CardContent className="p-6">
-            <h3 className="text-lg font-semibold mb-4 text-card-foreground">2. Share Response Code</h3>
+            <h3 className="text-lg font-semibold mb-4 text-card-foreground">Response Generated</h3>
             
             <div className="space-y-4">
-              <Textarea
-                value={answer}
-                readOnly
-                className="font-mono text-xs bg-muted"
-                rows={4}
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                className={copySuccess ? 'copy-success' : ''}
-                onClick={() => copyToClipboard(answer)}
-              >
-                {copySuccess ? (
-                  <CheckCircle2 className="w-4 h-4 mr-2" />
-                ) : (
-                  <Copy className="w-4 h-4 mr-2" />
-                )}
-                {copySuccess ? 'Copied!' : 'Copy Code'}
-              </Button>
-              <p className="text-sm text-muted-foreground">
-                Send this response code back to the sender
-              </p>
+              <div className="text-center p-4 bg-success/10 rounded-lg">
+                <CheckCircle2 className="w-8 h-8 text-success mx-auto mb-2" />
+                <p className="font-medium text-card-foreground">Connected successfully!</p>
+                <p className="text-sm text-muted-foreground">Waiting for file transfer to begin...</p>
+              </div>
             </div>
           </CardContent>
         </Card>

@@ -1,10 +1,12 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Upload, FileText, Copy, Link, Send, CheckCircle2 } from "lucide-react";
+import { Upload, FileText, Copy, QrCode, Send, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import QRCode from "qrcode";
 
 interface FileInfo {
   name: string;
@@ -17,7 +19,10 @@ export const SendFileTab = () => {
   const [selectedFile, setSelectedFile] = useState<FileInfo | null>(null);
   const [offer, setOffer] = useState("");
   const [shareableLink, setShareableLink] = useState("");
+  const [sixDigitCode, setSixDigitCode] = useState("");
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState("");
   const [answerText, setAnswerText] = useState("");
+  const [receiverCode, setReceiverCode] = useState("");
   const [connectionState, setConnectionState] = useState<"idle" | "generating" | "waiting" | "connected" | "sending" | "complete">("idle");
   const [sendProgress, setSendProgress] = useState(0);
   const [status, setStatus] = useState("");
@@ -48,6 +53,29 @@ export const SendFileTab = () => {
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
+  };
+
+  // Generate 6-digit code and store offer data
+  const generateSixDigitCode = () => {
+    return Math.floor(100000 + Math.random() * 900000).toString();
+  };
+
+  // Generate QR code from URL
+  const generateQRCode = async (url: string) => {
+    try {
+      const qrDataUrl = await QRCode.toDataURL(url, {
+        width: 200,
+        margin: 2,
+        color: {
+          dark: '#000000',
+          light: '#FFFFFF'
+        }
+      });
+      return qrDataUrl;
+    } catch (error) {
+      console.error('Error generating QR code:', error);
+      return '';
+    }
   };
 
   const generateOffer = async () => {
@@ -107,13 +135,24 @@ export const SendFileTab = () => {
       const offerJson = JSON.stringify(peerConnection.localDescription);
       setOffer(offerJson);
 
+      // Generate 6-digit code and store the offer data
+      const code = generateSixDigitCode();
+      setSixDigitCode(code);
+      
+      // Store offer data temporarily (in real app, use backend)
+      localStorage.setItem(`offer_${code}`, offerJson);
+
       // Create shareable link
       const base64Offer = btoa(offerJson);
       const link = `${window.location.origin}${window.location.pathname}#receive=${base64Offer}`;
       setShareableLink(link);
 
+      // Generate QR code for the 6-digit code
+      const qrCodeUrl = await generateQRCode(code);
+      setQrCodeDataUrl(qrCodeUrl);
+
       setConnectionState("waiting");
-      setStatus("Share the code with the receiver and wait for their response");
+      setStatus("Share the 6-digit code with the receiver and wait for their response");
 
     } catch (error) {
       console.error("Error generating offer:", error);
@@ -126,11 +165,49 @@ export const SendFileTab = () => {
     }
   };
 
-  const connectAndSend = async () => {
-    if (!answerText.trim() || !peerConnectionRef.current) return;
+  // Handle 6-digit response code from receiver
+  const handleReceiverCodeSubmit = async () => {
+    if (receiverCode.length !== 6) {
+      toast({
+        title: "Error",
+        description: "Please enter a valid 6-digit response code",
+        variant: "destructive"
+      });
+      return;
+    }
 
     try {
-      const answer = JSON.parse(answerText.trim());
+      // Retrieve answer data using the 6-digit response code
+      const storedAnswer = localStorage.getItem(`answer_${receiverCode}`);
+      if (!storedAnswer) {
+        setStatus("Error: Invalid 6-digit response code");
+        toast({
+          title: "Error",
+          description: "Invalid 6-digit response code or code has expired",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      setAnswerText(storedAnswer);
+      await connectAndSend(storedAnswer);
+    } catch (error) {
+      console.error("Error with 6-digit response code:", error);
+      setStatus("Error: Invalid 6-digit response code");
+      toast({
+        title: "Error",
+        description: "Failed to process 6-digit response code",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const connectAndSend = async (customAnswerText?: string) => {
+    const answerToUse = customAnswerText || answerText.trim();
+    if (!answerToUse || !peerConnectionRef.current) return;
+
+    try {
+      const answer = JSON.parse(answerToUse);
       await peerConnectionRef.current.setRemoteDescription(answer);
       setStatus("Connecting...");
     } catch (error) {
@@ -301,89 +378,111 @@ export const SendFileTab = () => {
         </Card>
       )}
 
-      {/* Connection Code */}
-      {offer && (
+      {/* Connection Code & QR Code */}
+      {sixDigitCode && (
         <Card className="border-card-border">
           <CardContent className="p-6">
-            <h3 className="text-lg font-semibold mb-4 text-card-foreground">3. Share Connection Code</h3>
+            <h3 className="text-lg font-semibold mb-4 text-card-foreground">3. Share Connection Info</h3>
             
-            <div className="space-y-4">
+            <div className="space-y-6">
               <div>
                 <label className="text-sm font-medium text-card-foreground mb-2 block">
-                  Connection Code (JSON)
+                  6-Digit Code
                 </label>
-                <Textarea
-                  value={offer}
-                  readOnly
-                  className="font-mono text-xs bg-muted"
-                  rows={4}
-                />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className={`mt-2 ${copySuccess === 'Connection code' ? 'copy-success' : ''}`}
-                  onClick={() => copyToClipboard(offer, "Connection code")}
-                >
-                  {copySuccess === 'Connection code' ? (
-                    <CheckCircle2 className="w-4 h-4 mr-2" />
-                  ) : (
-                    <Copy className="w-4 h-4 mr-2" />
-                  )}
-                  {copySuccess === 'Connection code' ? 'Copied!' : 'Copy Code'}
-                </Button>
+                <div className="flex items-center gap-3 p-4 bg-muted rounded-lg">
+                  <div className="text-3xl font-mono font-bold text-primary tracking-widest">
+                    {sixDigitCode}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className={copySuccess === '6-digit code' ? 'copy-success' : ''}
+                    onClick={() => copyToClipboard(sixDigitCode, "6-digit code")}
+                  >
+                    {copySuccess === '6-digit code' ? (
+                      <CheckCircle2 className="w-4 h-4 mr-2" />
+                    ) : (
+                      <Copy className="w-4 h-4 mr-2" />
+                    )}
+                    {copySuccess === '6-digit code' ? 'Copied!' : 'Copy'}
+                  </Button>
+                </div>
               </div>
 
-              <div>
-                <label className="text-sm font-medium text-card-foreground mb-2 block">
-                  Shareable Link
-                </label>
-                <Textarea
-                  value={shareableLink}
-                  readOnly
-                  className="font-mono text-xs bg-muted"
-                  rows={2}
-                />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className={`mt-2 ${copySuccess === 'Shareable link' ? 'copy-success' : ''}`}
-                  onClick={() => copyToClipboard(shareableLink, "Shareable link")}
-                >
-                  {copySuccess === 'Shareable link' ? (
-                    <CheckCircle2 className="w-4 h-4 mr-2" />
-                  ) : (
-                    <Link className="w-4 h-4 mr-2" />
-                  )}
-                  {copySuccess === 'Shareable link' ? 'Copied!' : 'Copy Link'}
-                </Button>
-              </div>
+              {qrCodeDataUrl && (
+                <div>
+                  <label className="text-sm font-medium text-card-foreground mb-2 block">
+                    QR Code
+                  </label>
+                  <div className="flex flex-col items-center gap-3 p-4 bg-muted rounded-lg">
+                    <img 
+                      src={qrCodeDataUrl} 
+                      alt="QR Code for 6-digit code" 
+                      className="w-48 h-48 border rounded-lg"
+                    />
+                    <p className="text-sm text-muted-foreground text-center">
+                      Scan this QR code or share the 6-digit code above
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
       )}
 
-      {/* Paste Answer */}
+      {/* Receiver Response */}
       {connectionState === "waiting" && (
         <Card className="border-card-border">
           <CardContent className="p-6">
-            <h3 className="text-lg font-semibold mb-4 text-card-foreground">4. Paste Receiver's Response</h3>
+            <h3 className="text-lg font-semibold mb-4 text-card-foreground">4. Enter Receiver's Response</h3>
             
-            <div className="space-y-4">
-              <Textarea
-                placeholder="Paste the response code from the receiver here..."
-                value={answerText}
-                onChange={(e) => setAnswerText(e.target.value)}
-                className="font-mono text-xs"
-                rows={4}
-              />
-              <Button
-                onClick={connectAndSend}
-                disabled={!answerText.trim()}
-                className="bg-gradient-primary hover:shadow-button transition-all duration-300"
-              >
-                <Send className="w-4 h-4 mr-2" />
-                Connect & Send
-              </Button>
+            <div className="space-y-6">
+              {/* 6-Digit Response Code Option */}
+              <div>
+                <label className="text-sm font-medium text-card-foreground mb-2 block">
+                  6-Digit Response Code
+                </label>
+                <div className="flex items-center gap-3">
+                  <Input
+                    placeholder="Enter 6-digit response code"
+                    value={receiverCode}
+                    onChange={(e) => setReceiverCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    className="text-center text-xl font-mono tracking-widest"
+                    maxLength={6}
+                  />
+                  <Button
+                    onClick={handleReceiverCodeSubmit}
+                    disabled={receiverCode.length !== 6}
+                    className="bg-gradient-primary hover:shadow-button transition-all duration-300"
+                  >
+                    <Send className="w-4 h-4 mr-2" />
+                    Connect & Send
+                  </Button>
+                </div>
+              </div>
+
+              {/* Alternative: Full Response Code */}
+              <div>
+                <label className="text-sm font-medium text-card-foreground mb-2 block">
+                  Alternative: Full Response Code
+                </label>
+                <Textarea
+                  placeholder="Or paste the full response code from the receiver here..."
+                  value={answerText}
+                  onChange={(e) => setAnswerText(e.target.value)}
+                  className="font-mono text-xs"
+                  rows={4}
+                />
+                <Button
+                  onClick={() => connectAndSend()}
+                  disabled={!answerText.trim()}
+                  className="mt-2 bg-gradient-primary hover:shadow-button transition-all duration-300"
+                >
+                  <Send className="w-4 h-4 mr-2" />
+                  Connect & Send
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
