@@ -4,7 +4,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Download, Copy, CheckCircle2, FileText } from "lucide-react";
+import { Download, Copy, CheckCircle2, FileText, Package } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface FileMetadata {
@@ -19,16 +19,18 @@ export const ReceiveFileTab = () => {
   const [answer, setAnswer] = useState("");
   const [connectionState, setConnectionState] = useState<"idle" | "generating" | "waiting" | "receiving" | "complete">("idle");
   const [receiveProgress, setReceiveProgress] = useState(0);
+  const [overallProgress, setOverallProgress] = useState(0);
+  const [currentFileIndex, setCurrentFileIndex] = useState(0);
+  const [totalFiles, setTotalFiles] = useState(0);
   const [status, setStatus] = useState("");
-  const [fileMetadata, setFileMetadata] = useState<FileMetadata | null>(null);
-  const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
+  const [receivedFiles, setReceivedFiles] = useState<Array<{ metadata: FileMetadata; url: string }>>([]);
   const [copySuccess, setCopySuccess] = useState(false);
   
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const receivedChunksRef = useRef<ArrayBuffer[]>([]);
   const expectedSizeRef = useRef<number>(0);
   const receivedSizeRef = useRef<number>(0);
-  const fileMetadataRef = useRef<FileMetadata | null>(null);
+  const currentFileMetadataRef = useRef<FileMetadata | null>(null);
   const { toast } = useToast();
 
   // Helper function to extract code from offer if needed
@@ -182,23 +184,38 @@ export const ReceiveFileTab = () => {
   };
 
   const handleDataChannelMessage = (data: any) => {
-    console.log("Data channel message received, type:", typeof data, "data:", data);
+    console.log("Data channel message received, type:", typeof data);
     
     if (typeof data === "string") {
-      // First message should be metadata
-      console.log("Received string message, parsing as metadata:", data);
       try {
-        const metadata: FileMetadata = JSON.parse(data);
-        console.log("Parsed metadata:", metadata);
-        setFileMetadata(metadata);
-        fileMetadataRef.current = metadata; // Store in ref for immediate access
-        setConnectionState("receiving");
-        setStatus(`Receiving ${metadata.name}...`);
-        expectedSizeRef.current = metadata.size;
-        receivedSizeRef.current = 0;
-        receivedChunksRef.current = [];
-        setReceiveProgress(0);
-        console.log("File metadata set successfully:", metadata);
+        const message = JSON.parse(data);
+        console.log("Received message:", message);
+        
+        if (message.type === 'total_files') {
+          // First message: total files info
+          setTotalFiles(message.count);
+          setConnectionState("receiving");
+          setStatus(`Receiving ${message.count} file${message.count > 1 ? 's' : ''}...`);
+          setOverallProgress(0);
+          console.log(`Expecting ${message.count} files, total size: ${message.totalSize}`);
+          
+        } else if (message.type === 'file_metadata') {
+          // File metadata for each file
+          const metadata: FileMetadata = {
+            name: message.name,
+            size: message.size,
+            type: message.fileType
+          };
+          
+          console.log("File metadata received:", metadata);
+          currentFileMetadataRef.current = metadata;
+          expectedSizeRef.current = metadata.size;
+          receivedSizeRef.current = 0;
+          receivedChunksRef.current = [];
+          setReceiveProgress(0);
+          setCurrentFileIndex(message.fileIndex);
+          setStatus(`Receiving ${metadata.name}... (${message.fileIndex + 1}/${totalFiles})`);
+        }
       } catch (error) {
         console.error("Error parsing metadata:", error);
       }
@@ -207,24 +224,31 @@ export const ReceiveFileTab = () => {
       receivedChunksRef.current.push(data);
       receivedSizeRef.current += data.byteLength;
       
-      const progress = Math.round((receivedSizeRef.current / expectedSizeRef.current) * 100);
-      setReceiveProgress(progress);
+      const fileProgress = Math.round((receivedSizeRef.current / expectedSizeRef.current) * 100);
+      setReceiveProgress(fileProgress);
       
-      console.log(`Received: ${receivedSizeRef.current}/${expectedSizeRef.current} bytes (${progress}%)`);
+      // Calculate overall progress
+      const filesCompleted = currentFileIndex;
+      const currentFileWeight = 1 / totalFiles;
+      const currentFileProgress = (fileProgress / 100) * currentFileWeight;
+      const overallPercent = Math.round(((filesCompleted / totalFiles) + currentFileProgress) * 100);
+      setOverallProgress(overallPercent);
       
-      // Check if we've received all data - use a small tolerance for floating point comparison
-      if (receivedSizeRef.current >= expectedSizeRef.current || progress >= 100) {
+      console.log(`Received: ${receivedSizeRef.current}/${expectedSizeRef.current} bytes (${fileProgress}%)`);
+      
+      // Check if current file is complete
+      if (receivedSizeRef.current >= expectedSizeRef.current || fileProgress >= 100) {
         console.log("File transfer complete, calling completeFileReceive");
-        completeFileReceive();
+        completeCurrentFileReceive();
       } else {
-        setStatus(`Receiving file... ${progress}%`);
+        setStatus(`Receiving ${currentFileMetadataRef.current?.name}... ${fileProgress}% (${currentFileIndex + 1}/${totalFiles})`);
       }
     }
   };
 
-  const completeFileReceive = () => {
-    console.log("completeFileReceive called");
-    const metadata = fileMetadataRef.current;
+  const completeCurrentFileReceive = () => {
+    console.log("completeCurrentFileReceive called");
+    const metadata = currentFileMetadataRef.current;
     if (!metadata) {
       console.log("No file metadata available in ref");
       return;
@@ -232,22 +256,35 @@ export const ReceiveFileTab = () => {
 
     try {
       console.log("Creating blob from", receivedChunksRef.current.length, "chunks");
-      // Combine all chunks into a single blob
       const blob = new Blob(receivedChunksRef.current, { type: metadata.type });
       const url = URL.createObjectURL(blob);
       
       console.log("Blob created successfully, size:", blob.size);
       
-      setDownloadUrl(url);
-      setConnectionState("complete");
-      setStatus("File received successfully!");
-      setReceiveProgress(100);
+      // Add completed file to the list
+      setReceivedFiles(prev => [...prev, { metadata, url }]);
       
-      toast({
-        title: "Success",
-        description: "File received successfully!",
-        variant: "default"
-      });
+      // Check if all files are received
+      if (currentFileIndex + 1 >= totalFiles) {
+        // All files received
+        setConnectionState("complete");
+        setStatus(`All ${totalFiles} files received successfully!`);
+        setOverallProgress(100);
+        
+        toast({
+          title: "Success",
+          description: `All ${totalFiles} files received successfully!`,
+          variant: "default"
+        });
+      } else {
+        // Reset for next file
+        receivedChunksRef.current = [];
+        receivedSizeRef.current = 0;
+        expectedSizeRef.current = 0;
+        currentFileMetadataRef.current = null;
+        setReceiveProgress(0);
+        setStatus(`Waiting for next file... (${currentFileIndex + 2}/${totalFiles})`);
+      }
 
       console.log("File received successfully:", {
         name: metadata.name,
@@ -286,15 +323,19 @@ export const ReceiveFileTab = () => {
     }
   };
 
-  const downloadFile = () => {
-    if (!downloadUrl || !fileMetadata) return;
-
+  const downloadFile = (fileData: { metadata: FileMetadata; url: string }) => {
     const link = document.createElement('a');
-    link.href = downloadUrl;
-    link.download = fileMetadata.name;
+    link.href = fileData.url;
+    link.download = fileData.metadata.name;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  const downloadAllFiles = () => {
+    receivedFiles.forEach((fileData, index) => {
+      setTimeout(() => downloadFile(fileData), index * 100); // Small delay between downloads
+    });
   };
 
   const formatFileSize = (bytes: number) => {
@@ -347,24 +388,32 @@ export const ReceiveFileTab = () => {
               <div className="text-center p-4 bg-success/10 rounded-lg">
                 <CheckCircle2 className="w-8 h-8 text-success mx-auto mb-2" />
                 <p className="font-medium text-card-foreground">Connected successfully!</p>
-                <p className="text-sm text-muted-foreground">Waiting for file transfer to begin...</p>
+                <p className="text-sm text-muted-foreground">
+                  {totalFiles > 0 ? `Waiting for ${totalFiles} file${totalFiles > 1 ? 's' : ''}...` : 'Waiting for files...'}
+                </p>
               </div>
             </div>
           </CardContent>
         </Card>
       )}
 
-      {/* File Metadata */}
-      {fileMetadata && (
+      {/* Files Overview */}
+      {totalFiles > 0 && (
         <Card className="border-card-border">
           <CardContent className="p-6">
-            <h3 className="text-lg font-semibold mb-4 text-card-foreground">Incoming File</h3>
+            <h3 className="text-lg font-semibold mb-4 text-card-foreground">Incoming Files</h3>
             
             <div className="flex items-center gap-4 p-4 bg-muted rounded-lg">
-              <FileText className="w-8 h-8 text-primary" />
+              <Package className="w-8 h-8 text-primary" />
               <div className="flex-1">
-                <p className="font-medium text-card-foreground">{fileMetadata.name}</p>
-                <p className="text-sm text-muted-foreground">{formatFileSize(fileMetadata.size)}</p>
+                <p className="font-medium text-card-foreground">
+                  {totalFiles} file{totalFiles > 1 ? 's' : ''} incoming
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {connectionState === "receiving" && currentFileMetadataRef.current && 
+                    `Currently receiving: ${currentFileMetadataRef.current.name}`
+                  }
+                </p>
               </div>
             </div>
           </CardContent>
@@ -375,35 +424,74 @@ export const ReceiveFileTab = () => {
       {connectionState === "receiving" && (
         <Card className="border-card-border">
           <CardContent className="p-6">
-            <h3 className="text-lg font-semibold mb-4 text-card-foreground">Receiving File</h3>
-            <Progress value={receiveProgress} className="mb-2" />
-            <p className="text-sm text-muted-foreground">{status}</p>
+            <h3 className="text-lg font-semibold mb-4 text-card-foreground">Receiving Files</h3>
+            <div className="space-y-4">
+              <div>
+                <div className="flex justify-between text-sm mb-2">
+                  <span>Overall Progress</span>
+                  <span>{overallProgress}%</span>
+                </div>
+                <Progress value={overallProgress} className="mb-2" />
+              </div>
+              <div>
+                <div className="flex justify-between text-sm mb-2">
+                  <span>Current File</span>
+                  <span>{receiveProgress}%</span>
+                </div>
+                <Progress value={receiveProgress} className="mb-2" />
+              </div>
+              <p className="text-sm text-muted-foreground">{status}</p>
+            </div>
           </CardContent>
         </Card>
       )}
 
       {/* Download */}
-      {connectionState === "complete" && downloadUrl && fileMetadata && (
+      {connectionState === "complete" && receivedFiles.length > 0 && (
         <Card className="border-card-border">
           <CardContent className="p-6">
-            <h3 className="text-lg font-semibold mb-4 text-card-foreground">Download Ready</h3>
+            <h3 className="text-lg font-semibold mb-4 text-card-foreground">Downloads Ready</h3>
             
-            <div className="text-center space-y-4">
-              <div className="flex items-center justify-center gap-4 p-4 bg-success/10 rounded-lg">
-                <CheckCircle2 className="w-8 h-8 text-success" />
-                <div>
-                  <p className="font-medium text-card-foreground">File received successfully!</p>
-                  <p className="text-sm text-muted-foreground">{fileMetadata.name}</p>
-                </div>
+            <div className="space-y-4">
+              <div className="text-center p-4 bg-success/10 rounded-lg">
+                <CheckCircle2 className="w-8 h-8 text-success mx-auto mb-2" />
+                <p className="font-medium text-card-foreground">
+                  All {receivedFiles.length} file{receivedFiles.length > 1 ? 's' : ''} received successfully!
+                </p>
               </div>
               
-              <Button
-                onClick={downloadFile}
-                className="bg-gradient-primary hover:shadow-button transition-all duration-300"
-              >
-                <Download className="w-4 h-4 mr-2" />
-                Download {fileMetadata.name}
-              </Button>
+              <div className="flex justify-center gap-4 mb-4">
+                <Button
+                  onClick={downloadAllFiles}
+                  className="bg-gradient-primary hover:shadow-button transition-all duration-300"
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Download All Files
+                </Button>
+              </div>
+              
+              <div className="space-y-2">
+                <h4 className="text-sm font-medium text-card-foreground">Individual Downloads:</h4>
+                {receivedFiles.map((fileData, index) => (
+                  <div key={index} className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <FileText className="w-5 h-5 text-primary" />
+                      <div>
+                        <p className="font-medium text-card-foreground text-sm">{fileData.metadata.name}</p>
+                        <p className="text-xs text-muted-foreground">{formatFileSize(fileData.metadata.size)}</p>
+                      </div>
+                    </div>
+                    <Button
+                      onClick={() => downloadFile(fileData)}
+                      variant="outline"
+                      size="sm"
+                    >
+                      <Download className="w-3 h-3 mr-1" />
+                      Download
+                    </Button>
+                  </div>
+                ))}
+              </div>
             </div>
           </CardContent>
         </Card>

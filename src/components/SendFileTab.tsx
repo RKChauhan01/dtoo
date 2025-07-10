@@ -4,7 +4,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Upload, FileText, Copy, QrCode, Send, CheckCircle2 } from "lucide-react";
+import { Upload, FileText, Copy, QrCode, Send, CheckCircle2, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import QRCode from "qrcode";
 
@@ -16,7 +16,7 @@ interface FileInfo {
 }
 
 export const SendFileTab = () => {
-  const [selectedFile, setSelectedFile] = useState<FileInfo | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<FileInfo[]>([]);
   const [offer, setOffer] = useState("");
   const [shareableLink, setShareableLink] = useState("");
   const [sixDigitCode, setSixDigitCode] = useState("");
@@ -25,6 +25,8 @@ export const SendFileTab = () => {
   const [receiverCode, setReceiverCode] = useState("");
   const [connectionState, setConnectionState] = useState<"idle" | "generating" | "waiting" | "connected" | "sending" | "complete">("idle");
   const [sendProgress, setSendProgress] = useState(0);
+  const [currentFileIndex, setCurrentFileIndex] = useState(0);
+  const [overallProgress, setOverallProgress] = useState(0);
   const [status, setStatus] = useState("");
   const [copySuccess, setCopySuccess] = useState<string | null>(null);
   
@@ -34,21 +36,26 @@ export const SendFileTab = () => {
   const { toast } = useToast();
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  const handleFileSelect = (file: File) => {
-    setSelectedFile({
+  const handleFileSelect = (files: FileList) => {
+    const newFiles = Array.from(files).map(file => ({
       name: file.name,
       size: file.size,
       type: file.type,
       file
-    });
+    }));
+    setSelectedFiles(prev => [...prev, ...newFiles]);
     setStatus("");
+  };
+
+  const removeFile = (index: number) => {
+    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
-    const files = Array.from(e.dataTransfer.files);
+    const files = e.dataTransfer.files;
     if (files.length > 0) {
-      handleFileSelect(files[0]);
+      handleFileSelect(files);
     }
   };
 
@@ -117,7 +124,7 @@ export const SendFileTab = () => {
   };
 
   const generateOffer = async () => {
-    if (!selectedFile) return;
+    if (selectedFiles.length === 0) return;
 
     try {
       setConnectionState("generating");
@@ -144,7 +151,7 @@ export const SendFileTab = () => {
         console.log("Data channel opened");
         setConnectionState("connected");
         setStatus("Connected! Starting file transfer...");
-        sendFile();
+        sendFiles();
       };
 
       dataChannel.onclose = () => {
@@ -262,75 +269,124 @@ export const SendFileTab = () => {
     }
   };
 
-  const sendFile = async () => {
-    if (!selectedFile || !dataChannelRef.current) return;
+  const sendFiles = async () => {
+    if (selectedFiles.length === 0 || !dataChannelRef.current) return;
 
     try {
       setConnectionState("sending");
-      setSendProgress(0);
-
-      const dataChannel = dataChannelRef.current;
-      const file = selectedFile.file;
-
-      // Send metadata first
-      const metadata = {
-        name: selectedFile.name,
-        size: selectedFile.size,
-        type: selectedFile.type
+      setCurrentFileIndex(0);
+      setOverallProgress(0);
+      
+      // Send total number of files first
+      const totalFilesMetadata = {
+        type: 'total_files',
+        count: selectedFiles.length,
+        totalSize: selectedFiles.reduce((sum, file) => sum + file.size, 0)
       };
-      dataChannel.send(JSON.stringify(metadata));
+      dataChannelRef.current.send(JSON.stringify(totalFilesMetadata));
 
-      // Send file in chunks
-      const chunkSize = 64 * 1024; // 64KB chunks
-      const totalChunks = Math.ceil(file.size / chunkSize);
-      let sentChunks = 0;
+      // Send files one by one
+      for (let i = 0; i < selectedFiles.length; i++) {
+        setCurrentFileIndex(i);
+        await sendSingleFile(selectedFiles[i], i);
+      }
 
-      const reader = new FileReader();
-      let offset = 0;
-
-      const sendNextChunk = () => {
-        if (offset >= file.size) {
-          setConnectionState("complete");
-          setStatus("File sent successfully!");
-          setSendProgress(100);
-          toast({
-            title: "Success",
-            description: "File sent successfully!",
-            variant: "default"
-          });
-          return;
-        }
-
-        const chunk = file.slice(offset, offset + chunkSize);
-        reader.readAsArrayBuffer(chunk);
-      };
-
-      reader.onload = (e) => {
-        if (e.target?.result) {
-          dataChannel.send(e.target.result as ArrayBuffer);
-          sentChunks++;
-          offset += chunkSize;
-          
-          const progress = Math.round((sentChunks / totalChunks) * 100);
-          setSendProgress(progress);
-          setStatus(`Sending file... ${progress}%`);
-
-          // Continue sending
-          setTimeout(sendNextChunk, 10); // Small delay to prevent overwhelming
-        }
-      };
-
-      sendNextChunk();
+      setConnectionState("complete");
+      setStatus("All files sent successfully!");
+      setOverallProgress(100);
+      toast({
+        title: "Success",
+        description: `All ${selectedFiles.length} files sent successfully!`,
+        variant: "default"
+      });
 
     } catch (error) {
-      console.error("Error sending file:", error);
-      setStatus("Error sending file");
+      console.error("Error sending files:", error);
+      setStatus("Error sending files");
       toast({
         title: "Error",
-        description: "Failed to send file",
+        description: "Failed to send files",
         variant: "destructive"
       });
     }
+  };
+
+  const sendSingleFile = async (fileInfo: FileInfo, fileIndex: number): Promise<void> => {
+    return new Promise((resolve, reject) => {
+      if (!dataChannelRef.current) {
+        reject(new Error("Data channel not available"));
+        return;
+      }
+
+      try {
+        const dataChannel = dataChannelRef.current;
+        const file = fileInfo.file;
+
+        // Send file metadata
+        const metadata = {
+          type: 'file_metadata',
+          fileIndex,
+          name: fileInfo.name,
+          size: fileInfo.size,
+          fileType: fileInfo.type
+        };
+        dataChannel.send(JSON.stringify(metadata));
+
+        // Send file in chunks
+        const chunkSize = 64 * 1024; // 64KB chunks
+        const totalChunks = Math.ceil(file.size / chunkSize);
+        let sentChunks = 0;
+
+        const reader = new FileReader();
+        let offset = 0;
+
+        const sendNextChunk = () => {
+          if (offset >= file.size) {
+            // File complete, update overall progress
+            const overallPercent = Math.round(((fileIndex + 1) / selectedFiles.length) * 100);
+            setOverallProgress(overallPercent);
+            setStatus(`Sent ${fileIndex + 1}/${selectedFiles.length} files`);
+            resolve();
+            return;
+          }
+
+          const chunk = file.slice(offset, offset + chunkSize);
+          reader.readAsArrayBuffer(chunk);
+        };
+
+        reader.onload = (e) => {
+          if (e.target?.result) {
+            dataChannel.send(e.target.result as ArrayBuffer);
+            sentChunks++;
+            offset += chunkSize;
+            
+            const fileProgress = Math.round((sentChunks / totalChunks) * 100);
+            setSendProgress(fileProgress);
+            
+            // Calculate overall progress
+            const filesCompleted = fileIndex;
+            const currentFileWeight = 1 / selectedFiles.length;
+            const currentFileProgress = (fileProgress / 100) * currentFileWeight;
+            const overallPercent = Math.round(((filesCompleted / selectedFiles.length) + currentFileProgress) * 100);
+            setOverallProgress(overallPercent);
+            
+            setStatus(`Sending ${fileInfo.name}... ${fileProgress}% (${fileIndex + 1}/${selectedFiles.length})`);
+
+            // Continue sending
+            setTimeout(sendNextChunk, 10);
+          }
+        };
+
+        reader.onerror = () => {
+          reject(new Error("Failed to read file"));
+        };
+
+        sendNextChunk();
+
+      } catch (error) {
+        reject(error);
+      }
+    });
   };
 
   const copyToClipboard = async (text: string, type: string) => {
@@ -353,6 +409,9 @@ export const SendFileTab = () => {
     }
   };
 
+  const getTotalFileSize = () => {
+    return selectedFiles.reduce((sum, file) => sum + file.size, 0);
+  };
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
@@ -366,9 +425,9 @@ export const SendFileTab = () => {
       {/* File Selection */}
       <Card className="border-card-border">
         <CardContent className="p-6">
-          <h3 className="text-lg font-semibold mb-4 text-card-foreground">1. Select File</h3>
+          <h3 className="text-lg font-semibold mb-4 text-card-foreground">1. Select Files</h3>
           
-          {!selectedFile ? (
+          {selectedFiles.length === 0 ? (
             <div
               className="border-2 border-dashed border-card-border rounded-lg p-8 text-center cursor-pointer hover:border-primary/50 transition-colors"
               onDrop={handleDrop}
@@ -376,36 +435,64 @@ export const SendFileTab = () => {
               onClick={() => fileInputRef.current?.click()}
             >
               <Upload className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-              <p className="text-card-foreground mb-2">Drop your file here or click to browse</p>
-              <p className="text-sm text-muted-foreground">Any file type, any size</p>
+              <p className="text-card-foreground mb-2">Drop your files here or click to browse</p>
+              <p className="text-sm text-muted-foreground">Select multiple files of any type</p>
               <input
                 ref={fileInputRef}
                 type="file"
+                multiple
                 className="hidden"
-                onChange={(e) => e.target.files?.[0] && handleFileSelect(e.target.files[0])}
+                onChange={(e) => e.target.files && handleFileSelect(e.target.files)}
               />
             </div>
           ) : (
-            <div className="flex items-center gap-4 p-4 bg-muted rounded-lg">
-              <FileText className="w-8 h-8 text-primary" />
-              <div className="flex-1">
-                <p className="font-medium text-card-foreground">{selectedFile.name}</p>
-                <p className="text-sm text-muted-foreground">{formatFileSize(selectedFile.size)}</p>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-sm text-muted-foreground">
+                  {selectedFiles.length} file{selectedFiles.length > 1 ? 's' : ''} selected ({formatFileSize(getTotalFileSize())})
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  Add More Files
+                </Button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => e.target.files && handleFileSelect(e.target.files)}
+                />
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setSelectedFile(null)}
-              >
-                Remove
-              </Button>
+              
+              <div className="max-h-60 overflow-y-auto space-y-2">
+                {selectedFiles.map((fileInfo, index) => (
+                  <div key={index} className="flex items-center gap-4 p-3 bg-muted rounded-lg">
+                    <FileText className="w-6 h-6 text-primary flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-card-foreground truncate">{fileInfo.name}</p>
+                      <p className="text-sm text-muted-foreground">{formatFileSize(fileInfo.size)}</p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeFile(index)}
+                      className="flex-shrink-0"
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </CardContent>
       </Card>
 
       {/* Generate Code */}
-      {selectedFile && connectionState === "idle" && (
+      {selectedFiles.length > 0 && connectionState === "idle" && (
         <Card className="border-card-border">
           <CardContent className="p-6">
             <h3 className="text-lg font-semibold mb-4 text-card-foreground">2. Generate Connection Code</h3>
@@ -496,9 +583,24 @@ export const SendFileTab = () => {
       {connectionState === "sending" && (
         <Card className="border-card-border">
           <CardContent className="p-6">
-            <h3 className="text-lg font-semibold mb-4 text-card-foreground">Sending File</h3>
-            <Progress value={sendProgress} className="mb-2" />
-            <p className="text-sm text-muted-foreground">{status}</p>
+            <h3 className="text-lg font-semibold mb-4 text-card-foreground">Sending Files</h3>
+            <div className="space-y-4">
+              <div>
+                <div className="flex justify-between text-sm mb-2">
+                  <span>Overall Progress</span>
+                  <span>{overallProgress}%</span>
+                </div>
+                <Progress value={overallProgress} className="mb-2" />
+              </div>
+              <div>
+                <div className="flex justify-between text-sm mb-2">
+                  <span>Current File</span>
+                  <span>{sendProgress}%</span>
+                </div>
+                <Progress value={sendProgress} className="mb-2" />
+              </div>
+              <p className="text-sm text-muted-foreground">{status}</p>
+            </div>
           </CardContent>
         </Card>
       )}
