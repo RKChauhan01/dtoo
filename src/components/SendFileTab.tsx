@@ -487,56 +487,6 @@ export const SendFileTab = () => {
                 </div>
               </div>
               
-              <details className="text-left">
-                <summary className="text-sm text-muted-foreground cursor-pointer hover:text-card-foreground">
-                  Manual connection (if needed)
-                </summary>
-                <div className="mt-4 space-y-4 border-t pt-4">
-                  <div>
-                    <label className="text-sm font-medium text-card-foreground mb-2 block">
-                      6-Digit Response Code
-                    </label>
-                    <div className="flex items-center gap-3">
-                      <Input
-                        placeholder="Enter 6-digit response code"
-                        value={receiverCode}
-                        onChange={(e) => setReceiverCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                        className="text-center text-xl font-mono tracking-widest"
-                        maxLength={6}
-                      />
-                      <Button
-                        onClick={handleReceiverCodeSubmit}
-                        disabled={receiverCode.length !== 6}
-                        className="bg-gradient-primary hover:shadow-button transition-all duration-300"
-                      >
-                        <Send className="w-4 h-4 mr-2" />
-                        Connect & Send
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium text-card-foreground mb-2 block">
-                      Full Response Code
-                    </label>
-                    <Textarea
-                      placeholder="Or paste the full response code from the receiver here..."
-                      value={answerText}
-                      onChange={(e) => setAnswerText(e.target.value)}
-                      className="font-mono text-xs"
-                      rows={4}
-                    />
-                    <Button
-                      onClick={() => connectAndSend()}
-                      disabled={!answerText.trim()}
-                      className="mt-2 bg-gradient-primary hover:shadow-button transition-all duration-300"
-                    >
-                      <Send className="w-4 h-4 mr-2" />
-                      Connect & Send
-                    </Button>
-                  </div>
-                </div>
-              </details>
             </div>
           </CardContent>
         </Card>

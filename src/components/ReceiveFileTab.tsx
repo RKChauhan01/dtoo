@@ -336,29 +336,6 @@ export const ReceiveFileTab = () => {
         </CardContent>
       </Card>
 
-      {/* Alternative: Manual Code Entry */}
-      <Card className="border-card-border">
-        <CardContent className="p-6">
-          <h3 className="text-lg font-semibold mb-4 text-card-foreground">Alternative: Paste Full Code</h3>
-          
-          <div className="space-y-4">
-            <Textarea
-              placeholder="Or paste the full connection code from the sender here..."
-              value={offerText}
-              onChange={(e) => setOfferText(e.target.value)}
-              className="font-mono text-xs"
-              rows={4}
-            />
-            <Button
-              onClick={() => generateAnswer()}
-              disabled={!offerText.trim() || connectionState !== "idle"}
-              className="bg-gradient-primary hover:shadow-button transition-all duration-300"
-            >
-              Generate Response Code
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Response Code Display */}
       {answer && (
