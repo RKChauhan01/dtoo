@@ -437,7 +437,7 @@ export const SendFileTab = () => {
       {/* Connection Code & QR Code */}
       {sixDigitCode && <Card className="border-card-border">
           <CardContent className="p-6">
-            <h3 className="text-lg font-semibold mb-4 text-card-foreground">3. Share Connection Info</h3>
+            <h3 className="text-lg font-semibold mb-4 text-card-foreground">Share Connection Info</h3>
             
             <div className="space-y-6">
               <div>
@@ -473,7 +473,7 @@ export const SendFileTab = () => {
       {/* Waiting for Connection */}
       {connectionState === "waiting" && <Card className="border-card-border">
           <CardContent className="p-6">
-            <h3 className="text-lg font-semibold mb-4 text-card-foreground">4. Waiting for Receiver</h3>
+            <h3 className="text-lg font-semibold mb-4 text-card-foreground">Waiting for Receiver</h3>
             
             <div className="text-center space-y-4">
               <div className="flex items-center justify-center gap-4 p-4 bg-info/10 rounded-lg">
