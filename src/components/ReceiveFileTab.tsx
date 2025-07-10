@@ -336,9 +336,7 @@ export const ReceiveFileTab = () => {
           <div className="space-y-4">
             <div>
               <Input placeholder="Enter 6-digit code from sender" value={sixDigitCode} onChange={e => setSixDigitCode(e.target.value.replace(/\D/g, '').slice(0, 6))} className="text-center text-2xl font-mono tracking-widest" maxLength={6} />
-              <p className="text-sm text-muted-foreground mt-2 text-center">
-                Enter the 6-digit code shared by the sender
-              </p>
+              
             </div>
             <Button onClick={handleSixDigitCodeSubmit} disabled={sixDigitCode.length !== 6 || connectionState !== "idle"} className="w-full bg-gradient-primary hover:shadow-button transition-all duration-300">
               Connect & Receive File
