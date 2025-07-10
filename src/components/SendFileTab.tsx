@@ -7,14 +7,12 @@ import { Progress } from "@/components/ui/progress";
 import { Upload, FileText, Copy, QrCode, Send, CheckCircle2, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import QRCode from "qrcode";
-
 interface FileInfo {
   name: string;
   size: number;
   type: string;
   file: File;
 }
-
 export const SendFileTab = () => {
   const [selectedFiles, setSelectedFiles] = useState<FileInfo[]>([]);
   const [offer, setOffer] = useState("");
@@ -29,13 +27,13 @@ export const SendFileTab = () => {
   const [overallProgress, setOverallProgress] = useState(0);
   const [status, setStatus] = useState("");
   const [copySuccess, setCopySuccess] = useState<string | null>(null);
-  
   const fileInputRef = useRef<HTMLInputElement>(null);
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const dataChannelRef = useRef<RTCDataChannel | null>(null);
-  const { toast } = useToast();
+  const {
+    toast
+  } = useToast();
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
-
   const handleFileSelect = (files: FileList) => {
     const newFiles = Array.from(files).map(file => ({
       name: file.name,
@@ -46,11 +44,9 @@ export const SendFileTab = () => {
     setSelectedFiles(prev => [...prev, ...newFiles]);
     setStatus("");
   };
-
   const removeFile = (index: number) => {
     setSelectedFiles(prev => prev.filter((_, i) => i !== index));
   };
-
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     const files = e.dataTransfer.files;
@@ -58,7 +54,6 @@ export const SendFileTab = () => {
       handleFileSelect(files);
     }
   };
-
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
   };
@@ -86,7 +81,7 @@ export const SendFileTab = () => {
 
     // Poll every 1000ms
     pollingIntervalRef.current = setInterval(pollForAnswer, 1000);
-    
+
     // Stop polling after 5 minutes to prevent indefinite polling
     setTimeout(() => {
       if (pollingIntervalRef.current) {
@@ -122,22 +117,20 @@ export const SendFileTab = () => {
       return '';
     }
   };
-
   const generateOffer = async () => {
     if (selectedFiles.length === 0) return;
-
     try {
       setConnectionState("generating");
       setStatus("Generating connection code...");
 
       // Create RTCPeerConnection with STUN servers
       const peerConnection = new RTCPeerConnection({
-        iceServers: [
-          { urls: "stun:stun.l.google.com:19302" },
-          { urls: "stun:stun1.l.google.com:19302" }
-        ]
+        iceServers: [{
+          urls: "stun:stun.l.google.com:19302"
+        }, {
+          urls: "stun:stun1.l.google.com:19302"
+        }]
       });
-
       peerConnectionRef.current = peerConnection;
 
       // Create data channel
@@ -153,12 +146,10 @@ export const SendFileTab = () => {
         setStatus("Connected! Starting file transfer...");
         sendFiles();
       };
-
       dataChannel.onclose = () => {
         console.log("Data channel closed");
       };
-
-      dataChannel.onerror = (error) => {
+      dataChannel.onerror = error => {
         console.error("Data channel error:", error);
         setStatus("Error: Connection failed");
       };
@@ -168,22 +159,21 @@ export const SendFileTab = () => {
       await peerConnection.setLocalDescription(offer);
 
       // Wait for ICE gathering to complete
-      await new Promise<void>((resolve) => {
-        peerConnection.onicecandidate = (event) => {
+      await new Promise<void>(resolve => {
+        peerConnection.onicecandidate = event => {
           if (event.candidate === null) {
             // ICE gathering complete
             resolve();
           }
         };
       });
-
       const offerJson = JSON.stringify(peerConnection.localDescription);
       setOffer(offerJson);
 
       // Generate 6-digit code and store the offer data
       const code = generateSixDigitCode();
       setSixDigitCode(code);
-      
+
       // Store offer data temporarily (in real app, use backend)
       localStorage.setItem(`offer_${code}`, offerJson);
 
@@ -195,13 +185,11 @@ export const SendFileTab = () => {
       // Generate QR code for the 6-digit code
       const qrCodeUrl = await generateQRCode(code);
       setQrCodeDataUrl(qrCodeUrl);
-
       setConnectionState("waiting");
       setStatus("Share the 6-digit code with the receiver. Connection will start automatically when receiver connects.");
 
       // Start polling for receiver's answer
       startPollingForAnswer(code, peerConnection);
-
     } catch (error) {
       console.error("Error generating offer:", error);
       setStatus("Error generating connection code");
@@ -223,7 +211,6 @@ export const SendFileTab = () => {
       });
       return;
     }
-
     try {
       // Retrieve answer data using the 6-digit response code
       const storedAnswer = localStorage.getItem(`answer_${receiverCode}`);
@@ -236,7 +223,6 @@ export const SendFileTab = () => {
         });
         return;
       }
-
       setAnswerText(storedAnswer);
       await connectAndSend(storedAnswer);
     } catch (error) {
@@ -249,11 +235,9 @@ export const SendFileTab = () => {
       });
     }
   };
-
   const connectAndSend = async (customAnswerText?: string) => {
     const answerToUse = customAnswerText || answerText.trim();
     if (!answerToUse || !peerConnectionRef.current) return;
-
     try {
       const answer = JSON.parse(answerToUse);
       await peerConnectionRef.current.setRemoteDescription(answer);
@@ -268,15 +252,13 @@ export const SendFileTab = () => {
       });
     }
   };
-
   const sendFiles = async () => {
     if (selectedFiles.length === 0 || !dataChannelRef.current) return;
-
     try {
       setConnectionState("sending");
       setCurrentFileIndex(0);
       setOverallProgress(0);
-      
+
       // Send total number of files first
       const totalFilesMetadata = {
         type: 'total_files',
@@ -290,7 +272,6 @@ export const SendFileTab = () => {
         setCurrentFileIndex(i);
         await sendSingleFile(selectedFiles[i], i);
       }
-
       setConnectionState("complete");
       setStatus("All files sent successfully!");
       setOverallProgress(100);
@@ -299,7 +280,6 @@ export const SendFileTab = () => {
         description: `All ${selectedFiles.length} files sent successfully!`,
         variant: "default"
       });
-
     } catch (error) {
       console.error("Error sending files:", error);
       setStatus("Error sending files");
@@ -310,14 +290,12 @@ export const SendFileTab = () => {
       });
     }
   };
-
   const sendSingleFile = async (fileInfo: FileInfo, fileIndex: number): Promise<void> => {
     return new Promise((resolve, reject) => {
       if (!dataChannelRef.current) {
         reject(new Error("Data channel not available"));
         return;
       }
-
       try {
         const dataChannel = dataChannelRef.current;
         const file = fileInfo.file;
@@ -336,59 +314,49 @@ export const SendFileTab = () => {
         const chunkSize = 64 * 1024; // 64KB chunks
         const totalChunks = Math.ceil(file.size / chunkSize);
         let sentChunks = 0;
-
         const reader = new FileReader();
         let offset = 0;
-
         const sendNextChunk = () => {
           if (offset >= file.size) {
             // File complete, update overall progress
-            const overallPercent = Math.round(((fileIndex + 1) / selectedFiles.length) * 100);
+            const overallPercent = Math.round((fileIndex + 1) / selectedFiles.length * 100);
             setOverallProgress(overallPercent);
             setStatus(`Sent ${fileIndex + 1}/${selectedFiles.length} files`);
             resolve();
             return;
           }
-
           const chunk = file.slice(offset, offset + chunkSize);
           reader.readAsArrayBuffer(chunk);
         };
-
-        reader.onload = (e) => {
+        reader.onload = e => {
           if (e.target?.result) {
             dataChannel.send(e.target.result as ArrayBuffer);
             sentChunks++;
             offset += chunkSize;
-            
-            const fileProgress = Math.round((sentChunks / totalChunks) * 100);
+            const fileProgress = Math.round(sentChunks / totalChunks * 100);
             setSendProgress(fileProgress);
-            
+
             // Calculate overall progress
             const filesCompleted = fileIndex;
             const currentFileWeight = 1 / selectedFiles.length;
-            const currentFileProgress = (fileProgress / 100) * currentFileWeight;
-            const overallPercent = Math.round(((filesCompleted / selectedFiles.length) + currentFileProgress) * 100);
+            const currentFileProgress = fileProgress / 100 * currentFileWeight;
+            const overallPercent = Math.round((filesCompleted / selectedFiles.length + currentFileProgress) * 100);
             setOverallProgress(overallPercent);
-            
             setStatus(`Sending ${fileInfo.name}... ${fileProgress}% (${fileIndex + 1}/${selectedFiles.length})`);
 
             // Continue sending
             setTimeout(sendNextChunk, 10);
           }
         };
-
         reader.onerror = () => {
           reject(new Error("Failed to read file"));
         };
-
         sendNextChunk();
-
       } catch (error) {
         reject(error);
       }
     });
   };
-
   const copyToClipboard = async (text: string, type: string) => {
     try {
       await navigator.clipboard.writeText(text);
@@ -408,7 +376,6 @@ export const SendFileTab = () => {
       });
     }
   };
-
   const getTotalFileSize = () => {
     return selectedFiles.reduce((sum, file) => sum + file.size, 0);
   };
@@ -419,96 +386,56 @@ export const SendFileTab = () => {
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
-
-  return (
-    <div className="space-y-6">
+  return <div className="space-y-6">
       {/* File Selection */}
       <Card className="border-card-border">
         <CardContent className="p-6">
-          <h3 className="text-lg font-semibold mb-4 text-card-foreground">1. Select Files</h3>
+          <h3 className="text-lg font-semibold mb-4 text-card-foreground">Select Files</h3>
           
-          {selectedFiles.length === 0 ? (
-            <div
-              className="border-2 border-dashed border-card-border rounded-lg p-8 text-center cursor-pointer hover:border-primary/50 transition-colors"
-              onDrop={handleDrop}
-              onDragOver={handleDragOver}
-              onClick={() => fileInputRef.current?.click()}
-            >
+          {selectedFiles.length === 0 ? <div className="border-2 border-dashed border-card-border rounded-lg p-8 text-center cursor-pointer hover:border-primary/50 transition-colors" onDrop={handleDrop} onDragOver={handleDragOver} onClick={() => fileInputRef.current?.click()}>
               <Upload className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
               <p className="text-card-foreground mb-2">Drop your files here or click to browse</p>
               <p className="text-sm text-muted-foreground">Select multiple files of any type</p>
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                className="hidden"
-                onChange={(e) => e.target.files && handleFileSelect(e.target.files)}
-              />
-            </div>
-          ) : (
-            <div className="space-y-4">
+              <input ref={fileInputRef} type="file" multiple className="hidden" onChange={e => e.target.files && handleFileSelect(e.target.files)} />
+            </div> : <div className="space-y-4">
               <div className="flex items-center justify-between mb-4">
                 <p className="text-sm text-muted-foreground">
                   {selectedFiles.length} file{selectedFiles.length > 1 ? 's' : ''} selected ({formatFileSize(getTotalFileSize())})
                 </p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => fileInputRef.current?.click()}
-                >
+                <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
                   Add More Files
                 </Button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  multiple
-                  className="hidden"
-                  onChange={(e) => e.target.files && handleFileSelect(e.target.files)}
-                />
+                <input ref={fileInputRef} type="file" multiple className="hidden" onChange={e => e.target.files && handleFileSelect(e.target.files)} />
               </div>
               
               <div className="max-h-60 overflow-y-auto space-y-2">
-                {selectedFiles.map((fileInfo, index) => (
-                  <div key={index} className="flex items-center gap-4 p-3 bg-muted rounded-lg">
+                {selectedFiles.map((fileInfo, index) => <div key={index} className="flex items-center gap-4 p-3 bg-muted rounded-lg">
                     <FileText className="w-6 h-6 text-primary flex-shrink-0" />
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-card-foreground truncate">{fileInfo.name}</p>
                       <p className="text-sm text-muted-foreground">{formatFileSize(fileInfo.size)}</p>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeFile(index)}
-                      className="flex-shrink-0"
-                    >
+                    <Button variant="ghost" size="sm" onClick={() => removeFile(index)} className="flex-shrink-0">
                       <X className="w-4 h-4" />
                     </Button>
-                  </div>
-                ))}
+                  </div>)}
               </div>
-            </div>
-          )}
+            </div>}
         </CardContent>
       </Card>
 
       {/* Generate Code */}
-      {selectedFiles.length > 0 && connectionState === "idle" && (
-        <Card className="border-card-border">
+      {selectedFiles.length > 0 && connectionState === "idle" && <Card className="border-card-border">
           <CardContent className="p-6">
             <h3 className="text-lg font-semibold mb-4 text-card-foreground">2. Generate Connection Code</h3>
-            <Button 
-              onClick={generateOffer}
-              className="bg-gradient-primary hover:shadow-button transition-all duration-300"
-            >
+            <Button onClick={generateOffer} className="bg-gradient-primary hover:shadow-button transition-all duration-300">
               Generate Code
             </Button>
           </CardContent>
-        </Card>
-      )}
+        </Card>}
 
       {/* Connection Code & QR Code */}
-      {sixDigitCode && (
-        <Card className="border-card-border">
+      {sixDigitCode && <Card className="border-card-border">
           <CardContent className="p-6">
             <h3 className="text-lg font-semibold mb-4 text-card-foreground">3. Share Connection Info</h3>
             
@@ -521,47 +448,30 @@ export const SendFileTab = () => {
                   <div className="text-3xl font-mono font-bold text-primary tracking-widest">
                     {sixDigitCode}
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className={copySuccess === '6-digit code' ? 'copy-success' : ''}
-                    onClick={() => copyToClipboard(sixDigitCode, "6-digit code")}
-                  >
-                    {copySuccess === '6-digit code' ? (
-                      <CheckCircle2 className="w-4 h-4 mr-2" />
-                    ) : (
-                      <Copy className="w-4 h-4 mr-2" />
-                    )}
+                  <Button variant="outline" size="sm" className={copySuccess === '6-digit code' ? 'copy-success' : ''} onClick={() => copyToClipboard(sixDigitCode, "6-digit code")}>
+                    {copySuccess === '6-digit code' ? <CheckCircle2 className="w-4 h-4 mr-2" /> : <Copy className="w-4 h-4 mr-2" />}
                     {copySuccess === '6-digit code' ? 'Copied!' : 'Copy'}
                   </Button>
                 </div>
               </div>
 
-              {qrCodeDataUrl && (
-                <div>
+              {qrCodeDataUrl && <div>
                   <label className="text-sm font-medium text-card-foreground mb-2 block">
                     QR Code
                   </label>
                   <div className="flex flex-col items-center gap-3 p-4 bg-muted rounded-lg">
-                    <img 
-                      src={qrCodeDataUrl} 
-                      alt="QR Code for 6-digit code" 
-                      className="w-48 h-48 border rounded-lg"
-                    />
+                    <img src={qrCodeDataUrl} alt="QR Code for 6-digit code" className="w-48 h-48 border rounded-lg" />
                     <p className="text-sm text-muted-foreground text-center">
                       Scan this QR code or share the 6-digit code above
                     </p>
                   </div>
-                </div>
-              )}
+                </div>}
             </div>
           </CardContent>
-        </Card>
-      )}
+        </Card>}
 
       {/* Waiting for Connection */}
-      {connectionState === "waiting" && (
-        <Card className="border-card-border">
+      {connectionState === "waiting" && <Card className="border-card-border">
           <CardContent className="p-6">
             <h3 className="text-lg font-semibold mb-4 text-card-foreground">4. Waiting for Receiver</h3>
             
@@ -576,12 +486,10 @@ export const SendFileTab = () => {
               
             </div>
           </CardContent>
-        </Card>
-      )}
+        </Card>}
 
       {/* Progress */}
-      {connectionState === "sending" && (
-        <Card className="border-card-border">
+      {connectionState === "sending" && <Card className="border-card-border">
           <CardContent className="p-6">
             <h3 className="text-lg font-semibold mb-4 text-card-foreground">Sending Files</h3>
             <div className="space-y-4">
@@ -602,21 +510,13 @@ export const SendFileTab = () => {
               <p className="text-sm text-muted-foreground">{status}</p>
             </div>
           </CardContent>
-        </Card>
-      )}
+        </Card>}
 
       {/* Status Messages */}
-      {status && (
-        <div className="text-center">
-          <p className={`text-sm ${
-            connectionState === "complete" ? "text-success" : 
-            status.includes("Error") ? "text-destructive" : 
-            "text-muted-foreground"
-          }`}>
+      {status && <div className="text-center">
+          <p className={`text-sm ${connectionState === "complete" ? "text-success" : status.includes("Error") ? "text-destructive" : "text-muted-foreground"}`}>
             {status}
           </p>
-        </div>
-      )}
-    </div>
-  );
+        </div>}
+    </div>;
 };
