@@ -79,8 +79,8 @@ export const SendFileTab = () => {
       }
     };
 
-    // Poll every 1000ms
-    pollingIntervalRef.current = setInterval(pollForAnswer, 1000);
+    // Poll every 200ms for faster connection
+    pollingIntervalRef.current = setInterval(pollForAnswer, 200);
 
     // Stop polling after 5 minutes to prevent indefinite polling
     setTimeout(() => {
@@ -143,8 +143,11 @@ export const SendFileTab = () => {
       dataChannel.onopen = () => {
         console.log("Data channel opened");
         setConnectionState("connected");
-        setStatus("Connected! Starting file transfer...");
-        sendFiles();
+        setStatus("Connected! Connection established and ready for multiple transfers.");
+        // Only send files if we have some selected
+        if (selectedFiles.length > 0) {
+          sendFiles();
+        }
       };
       dataChannel.onclose = () => {
         console.log("Data channel closed");
@@ -272,12 +275,14 @@ export const SendFileTab = () => {
         setCurrentFileIndex(i);
         await sendSingleFile(selectedFiles[i], i);
       }
-      setConnectionState("complete");
-      setStatus("All files sent successfully!");
+      setConnectionState("connected");
+      setStatus("All files sent successfully! Connection remains active for more transfers.");
       setOverallProgress(100);
+      setSendProgress(0);
+      setCurrentFileIndex(0);
       toast({
         title: "Success",
-        description: `All ${selectedFiles.length} files sent successfully!`,
+        description: `All ${selectedFiles.length} files sent successfully! You can send more files.`,
         variant: "default"
       });
     } catch (error) {
@@ -310,8 +315,8 @@ export const SendFileTab = () => {
         };
         dataChannel.send(JSON.stringify(metadata));
 
-        // Send file in chunks
-        const chunkSize = 64 * 1024; // 64KB chunks
+        // Send file in chunks with larger size for faster transfer
+        const chunkSize = 256 * 1024; // 256KB chunks for better performance
         const totalChunks = Math.ceil(file.size / chunkSize);
         let sentChunks = 0;
         const reader = new FileReader();
@@ -344,8 +349,8 @@ export const SendFileTab = () => {
             setOverallProgress(overallPercent);
             setStatus(`Sending ${fileInfo.name}... ${fileProgress}% (${fileIndex + 1}/${selectedFiles.length})`);
 
-            // Continue sending
-            setTimeout(sendNextChunk, 10);
+            // Continue sending immediately for faster transfer
+            sendNextChunk();
           }
         };
         reader.onerror = () => {
@@ -424,12 +429,25 @@ export const SendFileTab = () => {
         </CardContent>
       </Card>
 
-      {/* Generate Code */}
+      {/* Generate Code or Send More Files */}
       {selectedFiles.length > 0 && connectionState === "idle" && <Card className="border-card-border">
           <CardContent className="p-6">
             <h3 className="text-lg font-semibold mb-4 text-card-foreground">2. Generate Connection Code</h3>
             <Button onClick={generateOffer} className="bg-gradient-primary hover:shadow-button transition-all duration-300">
               Generate Code
+            </Button>
+          </CardContent>
+        </Card>}
+
+      {/* Send More Files Button */}
+      {selectedFiles.length > 0 && connectionState === "connected" && <Card className="border-card-border">
+          <CardContent className="p-6">
+            <h3 className="text-lg font-semibold mb-4 text-card-foreground">Send More Files</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Connection is active. You can send more files without reconnecting.
+            </p>
+            <Button onClick={sendFiles} className="bg-gradient-primary hover:shadow-button transition-all duration-300">
+              Send Selected Files
             </Button>
           </CardContent>
         </Card>}
