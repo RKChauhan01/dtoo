@@ -118,7 +118,7 @@ export const ReceiveFileTab = () => {
         dataChannel.onopen = () => {
           console.log("Data channel opened");
           setConnectionState("waiting");
-          setStatus("Connected! Waiting for file...");
+          setStatus("Connected! Ready to receive files. Connection is persistent for multiple transfers.");
         };
         dataChannel.onmessage = event => {
           handleDataChannelMessage(event.data);
@@ -252,13 +252,17 @@ export const ReceiveFileTab = () => {
 
       // Check if all files are received
       if (currentFileIndex + 1 >= totalFiles) {
-        // All files received
-        setConnectionState("complete");
-        setStatus(`All ${totalFiles} files received successfully!`);
+        // All files received but keep connection active
+        setConnectionState("waiting");
+        setStatus(`All ${totalFiles} files received! Connection remains active for more transfers.`);
         setOverallProgress(100);
+        // Reset for potential new transfers
+        setTotalFiles(0);
+        setCurrentFileIndex(0);
+        setReceiveProgress(0);
         toast({
           title: "Success",
-          description: `All ${totalFiles} files received successfully!`,
+          description: `All ${totalFiles} files received! Ready for more transfers.`,
           variant: "default"
         });
       } else {
@@ -407,7 +411,7 @@ export const ReceiveFileTab = () => {
         </Card>}
 
       {/* Download */}
-      {connectionState === "complete" && receivedFiles.length > 0 && <Card className="border-card-border">
+      {receivedFiles.length > 0 && <Card className="border-card-border">
           <CardContent className="p-6">
             <h3 className="text-lg font-semibold mb-4 text-card-foreground">Downloads Ready</h3>
             
@@ -415,7 +419,10 @@ export const ReceiveFileTab = () => {
               <div className="text-center p-4 bg-success/10 rounded-lg">
                 <CheckCircle2 className="w-8 h-8 text-success mx-auto mb-2" />
                 <p className="font-medium text-card-foreground">
-                  All {receivedFiles.length} file{receivedFiles.length > 1 ? 's' : ''} received successfully!
+                  {receivedFiles.length} file{receivedFiles.length > 1 ? 's' : ''} available for download!
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Connection remains active for additional transfers.
                 </p>
               </div>
               
